@@ -101,6 +101,8 @@ type authQuotaResponse struct {
 	AuthRevision                        string              `json:"auth_revision,omitempty"`
 	FetchedAt                           time.Time           `json:"fetched_at"`
 	Plan                                string              `json:"plan,omitempty"`
+	CreditBalance                       string              `json:"credit_balance,omitempty"`
+	CreditsUnlimited                    bool                `json:"credits_unlimited,omitempty"`
 	RateLimitResetCreditsAvailableCount *int                `json:"rate_limit_reset_credits_available_count,omitempty"`
 	RateLimitResetCredits               []resetCreditExpiry `json:"rate_limit_reset_credits,omitempty"`
 	RateLimitResetCreditsUnavailable    bool                `json:"rate_limit_reset_credits_unavailable,omitempty"`
@@ -296,6 +298,22 @@ func codexPlanLabel(plan string) string {
 		return label
 	}
 	return plan
+}
+
+var creditBalancePattern = regexp.MustCompile(`^\d+(?:\.\d+)?$`)
+
+func codexCreditBalance(value any) string {
+	var balance string
+	switch value := value.(type) {
+	case string:
+		balance = strings.TrimSpace(value)
+	case float64:
+		balance = strconv.FormatFloat(value, 'f', -1, 64)
+	}
+	if !creditBalancePattern.MatchString(balance) {
+		return ""
+	}
+	return balance
 }
 
 func (a *App) listHostAuthFiles() ([]hostAuthFile, error) {
@@ -496,6 +514,8 @@ func (a *App) fetchCodexQuota(callbackID, token, accountID string, result *authQ
 	if plan := firstString(object, "plan_type", "planType"); plan != "" {
 		result.Plan = codexPlanLabel(plan)
 	}
+	credits := objectMap(object, "credits")
+	result.CreditBalance, result.CreditsUnlimited = codexCreditBalance(credits["balance"]), credits["unlimited"] == true
 	appendCodexRateLimit(result, "", objectMap(object, "rate_limit", "rateLimit"))
 	appendCodexRateLimit(result, "Code Review ", objectMap(object, "code_review_rate_limit", "codeReviewRateLimit"))
 	for _, raw := range objectSlice(object, "additional_rate_limits", "additionalRateLimits") {

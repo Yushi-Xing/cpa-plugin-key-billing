@@ -325,7 +325,7 @@ func TestCodexQuotaPreservesAdditionalDynamicWindows(t *testing.T) {
 			if request.Headers.Get("Authorization") != "Bearer dummy-token" || request.Headers.Get("Chatgpt-Account-Id") != "dummy-account" {
 				t.Fatalf("headers = %#v", request.Headers)
 			}
-			body := `{"plan_type":"pro","rate_limit":{"primary_window":{"used_percent":38,"limit_window_seconds":604800}},"additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","rate_limit":{"primary_window":{"used_percent":0,"limit_window_seconds":18000},"secondary_window":{"used_percent":0,"limit_window_seconds":604800}}}],"rate_limit_reset_credits":{"available_count":1}}`
+			body := `{"plan_type":"pro","credits":{"balance":"12.5"},"rate_limit":{"primary_window":{"used_percent":38,"limit_window_seconds":604800}},"additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","rate_limit":{"primary_window":{"used_percent":0,"limit_window_seconds":18000},"secondary_window":{"used_percent":0,"limit_window_seconds":604800}}}],"rate_limit_reset_credits":{"available_count":1}}`
 			return mustJSONRaw(t, hostHTTPResponse{StatusCode: http.StatusOK, Body: []byte(body)}), nil
 		default:
 			t.Fatalf("unexpected host method %q", method)
@@ -343,7 +343,7 @@ func TestCodexQuotaPreservesAdditionalDynamicWindows(t *testing.T) {
 	if endpoint != "https://chatgpt.com/backend-api/wham/usage" {
 		t.Fatalf("endpoint = %q", endpoint)
 	}
-	if result.Plan != "Pro 200" || len(result.Quota) != 3 {
+	if result.Plan != "Pro 200" || result.CreditBalance != "12.5" || len(result.Quota) != 3 {
 		t.Fatalf("quota = %+v", result)
 	}
 	if len(result.RateLimitResetCredits) != 1 || result.RateLimitResetCredits[0].ExpiresAt != "2026-10-04T02:27:00Z" {
