@@ -237,7 +237,7 @@
   "ui.used_value": "已用 {v0}",
   "ui.quota_value": "额度 {v0}",
   "ui.updating_quotas": "正在刷新额度…",
-  "ui.credit_balance_value": "Credits 余额：{v0}",
+  "ui.credits_value": "Credits：{v0}",
   "ui.available_resets_value": "主动重置次数：{v0}",
   "ui.enable": "启用",
   "ui.enable_auth_file_failed_value": "启用认证文件失败：{v0}",

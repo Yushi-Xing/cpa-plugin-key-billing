@@ -516,6 +516,8 @@ AUTH_FILE_QUOTAS = {
         ],
     },
     "auth-demo-xai-active": {
+        "credit_balance": "12.34",
+        "credit_currency": "USD",
         "quota": [
             quota_row("周限额", 78, 410400),
             {

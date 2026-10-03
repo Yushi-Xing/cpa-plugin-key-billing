@@ -585,7 +585,7 @@ func TestCredentialProxyFailsInsteadOfSendingDirectRequest(t *testing.T) {
 func TestXAIQuotaCombinesWeeklyMonthlyAndOnDemand(t *testing.T) {
 	responses := map[string]string{
 		"https://cli-chat-proxy.grok.com/v1/billing?format=credits": `{"config":{"creditUsagePercent":62.5,"currentPeriod":{"end":"2026-09-08T00:00:00Z"}}}`,
-		"https://cli-chat-proxy.grok.com/v1/billing":                `{"config":{"monthlyLimit":{"val":1000},"used":{"val":1250},"onDemandCap":{"val":500},"billingPeriodEnd":"2026-10-01T00:00:00Z"}}`,
+		"https://cli-chat-proxy.grok.com/v1/billing":                `{"config":{"monthlyLimit":{"val":1000},"used":{"val":1250},"onDemandCap":{"val":500},"prepaidBalance":{"val":1234},"billingPeriodEnd":"2026-10-01T00:00:00Z"}}`,
 	}
 	app := newConfiguredApp(t)
 	app.SetHostCaller(func(_ string, payload any) (json.RawMessage, error) {
@@ -612,6 +612,9 @@ func TestXAIQuotaCombinesWeeklyMonthlyAndOnDemand(t *testing.T) {
 	monthly := result.Quota[1]
 	if monthly.Currency != "USD" || monthly.Used == nil || *monthly.Used != 10 || monthly.Limit == nil || *monthly.Limit != 10 || monthly.RemainingPercent == nil || *monthly.RemainingPercent != 0 {
 		t.Fatalf("monthly quota = %+v", monthly)
+	}
+	if result.CreditBalance != "12.34" || result.CreditCurrency != "USD" {
+		t.Fatalf("prepaid credits = %q %q", result.CreditBalance, result.CreditCurrency)
 	}
 }
 

@@ -102,6 +102,7 @@ type authQuotaResponse struct {
 	FetchedAt                           time.Time           `json:"fetched_at"`
 	Plan                                string              `json:"plan,omitempty"`
 	CreditBalance                       string              `json:"credit_balance,omitempty"`
+	CreditCurrency                      string              `json:"credit_currency,omitempty"`
 	CreditsUnlimited                    bool                `json:"credits_unlimited,omitempty"`
 	RateLimitResetCreditsAvailableCount *int                `json:"rate_limit_reset_credits_available_count,omitempty"`
 	RateLimitResetCredits               []resetCreditExpiry `json:"rate_limit_reset_credits,omitempty"`
@@ -807,6 +808,13 @@ func (a *App) fetchXAIQuota(callbackID, token, userID string, result *authQuotaR
 	if percent, ok := floatValue(weeklyConfig, "creditUsagePercent", "credit_usage_percent"); ok {
 		row := quotaRow{Label: "Weekly limit", LabelMessage: messages.New("Weekly limit"), RemainingPercent: remainingPercent(100 - percent), ResetAt: xaiResetAt(weeklyConfig)}
 		result.Quota = append(result.Quota, row)
+	}
+	prepaid, hasPrepaid := usdValue(weeklyConfig, "prepaidBalance", "prepaid_balance")
+	if !hasPrepaid {
+		prepaid, hasPrepaid = usdValue(monthlyConfig, "prepaidBalance", "prepaid_balance")
+	}
+	if hasPrepaid && prepaid > 0 {
+		result.CreditBalance, result.CreditCurrency = strconv.FormatFloat(prepaid, 'f', -1, 64), "USD"
 	}
 	monthlyLimit, hasLimit := usdValue(monthlyConfig, "monthlyLimit", "monthly_limit")
 	totalUsed, hasUsed := usdValue(monthlyConfig, "used")

@@ -5775,10 +5775,10 @@
         const result = owner.authQuotas.get(index);
         if (!result) return null;
         const summary = [];
-        if (result.credits_unlimited || result.credit_balance)
-          summary.push(
-            el("span", { text: m("ui.credit_balance_value", { v0: result.credits_unlimited ? m("ui.unlimited") : result.credit_balance }) })
-          );
+        const credits = result.credits_unlimited
+          ? m("ui.unlimited")
+          : result.credit_currency === "USD" ? usd(Number(result.credit_balance)) : result.credit_balance;
+        if (credits) summary.push(el("span", { text: m("ui.credits_value", { v0: credits }) }));
         if (Number.isFinite(result.rate_limit_reset_credits_available_count))
           summary.push(el("span", { text: m("ui.available_resets_value", { v0: int(result.rate_limit_reset_credits_available_count) }) }));
         const rows = result.quota;
