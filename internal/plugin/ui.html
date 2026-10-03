@@ -567,8 +567,7 @@
         background: var(--app-input-bg, var(--app-surface-strong));
       }
       :root[data-cpamp-plugin-host="true"] .toggle-filter.compact-toggle { border-color: transparent; background: transparent; }
-      :root[data-cpamp-plugin-host="true"]
-        button:not(.link, .icon-action, .auth-refresh-icon-button, .routing-section-toggle, .routing-option) {
+      :root[data-cpamp-plugin-host="true"] button:not(.link, .icon-action, .routing-section-toggle, .routing-option) {
         min-height: 34px;
         padding: 0 var(--button-padding-inline, 12px);
         border-color: var(--app-border, var(--border-color));
@@ -1088,6 +1087,8 @@
       }
       .auth-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: stretch; }
       .auth-file-card {
+        display: flex;
+        flex-direction: column;
         height: 100%;
         min-width: 0;
         padding: 14px;
@@ -1105,6 +1106,7 @@
         }
       }
       .auth-file-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .auth-file-head > .tag { flex: none; margin-top: 2px; }
       .auth-file-main { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
       .auth-file-identity { min-width: 0; flex: 1; }
       .auth-file-email-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1153,27 +1155,17 @@
       :root[data-theme="dark"] .auth-provider-icon[data-provider="xai"] {
         box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
       }
-      .auth-file-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-      .auth-refresh-icon-button {
-        display: grid;
-        place-items: center;
-        width: 30px;
-        height: 30px;
-        min-width: 30px;
-        min-height: 30px;
-        padding: 0;
-        border-radius: 50%;
-        line-height: 0;
-      }
-      .auth-refresh-icon-button .lucide-icon { width: 14px; height: 14px; transform-origin: center; }
-      .auth-refresh-icon-button.loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon {
+      .auth-file-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 14px; }
+      .auth-file-footer button { min-height: 30px; padding: 3px 10px; font-size: 12px; }
+      .auth-file-footer .lucide-icon { width: 14px; height: 14px; transform-origin: center; }
+      .auth-file-footer .loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon {
         animation: auth-refresh-spin 0.8s linear infinite;
       }
       @keyframes auth-refresh-spin {
         to { transform: rotate(360deg); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .auth-refresh-icon-button.loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon { animation: none; }
+        .auth-file-footer .loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon { animation: none; }
       }
       .auth-file-quota { display: grid; gap: 11px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); }
       .auth-quota-summary { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--text-secondary); font-size: 12px; }
@@ -5700,23 +5692,8 @@
           summary.push(
             el("span", { text: m("ui.credit_balance_value", { v0: result.credits_unlimited ? m("ui.unlimited") : result.credit_balance }) })
           );
-        if (
-          result.rate_limit_reset_credits_available_count != null &&
-          Number.isFinite(Number(result.rate_limit_reset_credits_available_count))
-        ) {
+        if (Number.isFinite(result.rate_limit_reset_credits_available_count))
           summary.push(el("span", { text: m("ui.available_resets_value", { v0: int(result.rate_limit_reset_credits_available_count) }) }));
-          if (file.category === "codex" && (!account || resources.account.profile.value?.can_reset_auth_quota === true)) {
-            summary.push(
-              el("button", {
-                type: "button",
-                class: "link small",
-                text: m("ui.reset_quota"),
-                disabled: !canResetAuthQuota(file, account),
-                onclick: () => guard(() => resetAuthQuota(file, account))
-              })
-            );
-          }
-        }
         const rows = result.quota;
         return el(
           "div",
@@ -5754,21 +5731,38 @@
               return true;
             });
             const loading = ui.owner.authQuotaLoading.has(file.auth_index);
-            const refreshButton = el(
-              "button",
-              {
-                type: "button",
-                class: "auth-refresh-icon-button" + (loading ? " loading" : ""),
-                disabled: !file.quota_supported || loading || ui.bulk.dataset.loading === "true",
-                "aria-label": m("ui.update_quotas"),
-                title: file.quota_supported
-                  ? m("ui.update_quotas")
-                  : window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
-                    m("ui.quota_queries_are_not_supported_for_this_auth_file_type"),
-                onclick: () => guard(() => refreshAuthQuota(file, account))
-              },
-              actionIcon("refresh")
-            );
+            const resettable =
+              file.category === "codex" && (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
+              Number.isFinite(quota?.rate_limit_reset_credits_available_count);
+            const actions = [
+              resettable &&
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "labeled-icon-button",
+                    disabled: !canResetAuthQuota(file, account),
+                    onclick: () => guard(() => resetAuthQuota(file, account))
+                  },
+                  actionIcon("party-popper"),
+                  m("ui.reset_quota")
+                ),
+              el(
+                "button",
+                {
+                  type: "button",
+                  class: "labeled-icon-button" + (loading ? " loading" : ""),
+                  disabled: !file.quota_supported || loading || ui.bulk.dataset.loading === "true",
+                  title: file.quota_supported
+                    ? null
+                    : window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
+                      m("ui.quota_queries_are_not_supported_for_this_auth_file_type"),
+                  onclick: () => guard(() => refreshAuthQuota(file, account))
+                },
+                actionIcon("refresh"),
+                m("ui.update_quotas")
+              )
+            ];
             return el(
               "article",
               { class: "auth-file-card" },
@@ -5790,9 +5784,10 @@
                     el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
                   )
                 ),
-                el("div", { class: "auth-file-actions" }, el("span", { class: "tag " + statusClass, text: statusText }), refreshButton)
+                el("span", { class: "tag " + statusClass, text: statusText })
               ),
-              renderAuthFileQuota(file, account)
+              renderAuthFileQuota(file, account),
+              el("div", { class: "auth-file-footer" }, actions)
             );
           }
         });
