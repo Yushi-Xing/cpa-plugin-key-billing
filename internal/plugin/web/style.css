@@ -437,8 +437,8 @@ tbody tr:hover { background: var(--bg-hover); }
 .page-tabs-row.controls-inline .shared-time-filter, .page-tab-actions > button { flex: none; }
 /* Wrapped filters keep to a single line, so the range trigger shrinks with the key select. */
 .page-tabs-row:not(.controls-inline) .shared-time-filter > .time-range-control { flex: 0 1 auto; }
-.tab-refresh {
-  display: none;
+.tab-refresh, .privacy-mask-button {
+  display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
@@ -448,6 +448,7 @@ tbody tr:hover { background: var(--bg-hover); }
   border-radius: 50%;
   line-height: 0;
 }
+.tab-refresh { display: none; }
 body.embedded .tab-refresh { display: grid; }
 .tabs-scroll {
   --tabs-fade-surface: var(--bg-secondary);

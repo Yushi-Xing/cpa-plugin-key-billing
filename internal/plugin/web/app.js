@@ -196,7 +196,9 @@ function privacyMaskButton(role) { return $((role === "account" ? "account-" : "
 function setPrivacyMask(role, masked) {
   const button = privacyMaskButton(role);
   button.setAttribute("aria-pressed", String(masked));
-  setLabeledActionIcon(button, masked ? "eye-off" : "eye", m("ui.mask"));
+  // setActionIcon would replace the descriptive title.
+  button.replaceChildren(actionIcon(masked ? "eye-off" : "eye"));
+  setTextAttribute(button, "aria-label", m("ui.mask"));
   document.body.classList.toggle("privacy-masked", masked);
 }
 
