@@ -52,6 +52,8 @@ HOST_SHELL = r"""<!doctype html>
 }
 html[data-host=cpamp]{
   --app-bg:#eff2f7;--app-bg-gradient:linear-gradient(120deg,#f0f7ff 0%,#e7f2ff 50%,#edf7ff 100%);
+  --app-bg-blob-1-start:#7aa2ff;--app-bg-blob-1-end:#b6d4ff;--app-bg-blob-2-start:#6bc5ff;--app-bg-blob-2-end:#7debdc;
+  --app-bg-blob-1-opacity:.5;--app-bg-blob-2-opacity:.5;--app-bg-blob-blur:60px;--glass-backdrop-filter:blur(20px);
   --app-surface:rgba(255,255,255,.94);--app-surface-strong:#fff;--app-surface-muted:rgba(255,255,255,.68);
   --app-border:rgba(15,23,42,.08);--app-border-strong:rgba(15,23,42,.12);
   --app-text-primary:#2c3e50;--app-text-regular:#5f6c7b;--app-text-muted:#8b95a6;
@@ -81,6 +83,8 @@ html[data-host=cpamp]{
 }
 html[data-host=cpamp][data-theme=dark]{
   --app-bg:#0a0a0a;--app-bg-gradient:linear-gradient(120deg,#0b1324 0%,#0a1426 50%,#091521 100%);
+  --app-bg-blob-1-start:#1b2a55;--app-bg-blob-1-end:#27325c;--app-bg-blob-2-start:#0f3d59;--app-bg-blob-2-end:#0c4a4f;
+  --app-bg-blob-1-opacity:.35;--app-bg-blob-2-opacity:.3;--app-bg-blob-blur:70px;
   --app-surface:rgba(24,28,40,.9);--app-surface-strong:#1b1f2a;--app-surface-muted:rgba(255,255,255,.08);
   --app-border:rgba(255,255,255,.08);--app-border-strong:rgba(255,255,255,.12);
   --app-text-primary:#e5e5e5;--app-text-regular:#a3a3a3;--app-text-muted:#7a7a7a;
