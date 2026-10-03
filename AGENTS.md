@@ -15,14 +15,20 @@ Source paths are relative to this repository's root:
 - **Frontend regression scripts:** Store JavaScript scripts used with `playwright-cli` for browser regression testing in a temporary directory, never in the project's `scripts/` directory.
 - **Billing changes:** Run `scripts/e2e_cpa_billing.sh v7.2.143` after modifying any billing behavior, including usage parsing, pricing, quota enforcement, or failure reporting.
 
+## Frontend Layout
+
+- The management page lives in `internal/plugin/web/`. `ui.html` is the page template; `internal/plugin/ui.go` replaces each `/*name.css*/` or `/*name.js*/` marker with that sibling file, and the browser receives one self-contained HTML resource. `scripts/frontend_dummy_backend.py` mirrors this assembly.
+- `standalone.js`, `i18n.js`, `style.css`, and `theme.js` load in `<head>`. The feature files (`core.js` through `app.js`) are inlined together into one strict script at the end of `<body>`: top-level declarations are shared, function declarations hoist across files, and top-level statements run in template order. Keep load-time code (constants, bindings, bootstrap) after anything it reads, and keep `app.js` last.
+- Add new feature files to the template with their own marker; every `.js` and `.css` file in `web/` must be included exactly once.
+
 ## UI Formatting
 
-- Use `scripts/format_ui.mjs` for `internal/plugin/ui.html`; do not run plain Prettier on that file, since it expands intentionally compact code.
+- Use `scripts/format_ui.mjs` for the template, stylesheet, and scripts in `internal/plugin/web/`; do not run plain Prettier on them, since it expands intentionally compact code. `i18n.js` keeps its own layout and is not formatted.
 - Requires Node.js 20+ and npm. Install the pinned development-only dependencies with `npm ci --prefix scripts` after checkout or a lockfile change.
-- Format with `node scripts/format_ui.mjs`. Check without writing with `node scripts/format_ui.mjs --check` (exit status 1 means changes are needed or validation failed). The default target is resolved relative to the script, independently of the working directory.
+- Format with `node scripts/format_ui.mjs`. Check without writing with `node scripts/format_ui.mjs --check` (exit status 1 means changes are needed or validation failed). By default it covers `internal/plugin/web/*.{html,css,js}`, resolved relative to the script independently of the working directory; pass file paths to format only those files.
 - Keep 2-space indentation, useful blank lines, and multi-statement blocks. Short CSS rules, HTML elements, and JavaScript expressions or single-statement blocks are kept on one line where practical, using roughly 140 characters as a guide rather than minifying.
 - The formatter checks JavaScript ASTs, CSS structure, and HTML display text before writing. If validation fails, inspect the unsupported formatting case; do not bypass the check or change application behavior just to make formatting pass.
-- After changing the formatter, run `npm test --prefix scripts` and verify that a second format pass leaves `ui.html` unchanged. The desktop/narrow-screen browser checks above still apply to UI formatting changes.
+- After changing the formatter, run `npm test --prefix scripts` and verify that a second format pass leaves the files in `internal/plugin/web/` unchanged. The desktop/narrow-screen browser checks above still apply to UI formatting changes.
 
 ## Architecture Invariants
 
@@ -43,7 +49,7 @@ Source paths are relative to this repository's root:
 
 ## Release and Changelog
 
-- Before tagging, increment the patch version unless the user explicitly requests a major or minor change, and create an annotated tag with `git tag -a` and a message. Whenever changing `Version` in `internal/plugin/types.go`, update the footer version in `internal/plugin/ui.html` to match.
+- Before tagging, increment the patch version unless the user explicitly requests a major or minor change, and create an annotated tag with `git tag -a` and a message. Whenever changing `Version` in `internal/plugin/types.go`, update the footer version in `internal/plugin/web/ui.html` to match.
 - Edit `Changelog.md` only when the user explicitly requests preparation for a tag or release.
 - Prepend one `## vX.Y.Z` section directly below `# Changelog`; never append releases or add an unreleased placeholder.
 - Treat sections for tags that already exist as immutable history. Do not edit, move, merge, or delete them unless the user explicitly requests changes to that tag's entry.

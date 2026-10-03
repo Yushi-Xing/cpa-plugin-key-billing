@@ -14,7 +14,9 @@ from urllib.parse import parse_qs, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
-UI_PATH = ROOT / "internal" / "plugin" / "ui.html"
+UI_DIR = ROOT / "internal" / "plugin" / "web"
+# Matches the placeholders internal/plugin/ui.go replaces with sibling files.
+UI_INCLUDE = re.compile(r"/\*([a-z0-9-]+\.(?:css|js))\*/")
 API_BASE = "/v0/management/plugins/cpa-key-billing"
 RESOURCE_BASE = "/v0/resource/plugins/cpa-key-billing"
 NOW = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
@@ -545,8 +547,8 @@ def auth_file_quota(query):
         "fetched_at": iso(NOW),
         **quota,
     }
-    english = json.loads((UI_PATH.parent / "locales/en.json").read_text())
-    chinese = json.loads((UI_PATH.parent / "locales/zh-CN.json").read_text())
+    english = json.loads((UI_DIR / "locales/en.json").read_text())
+    chinese = json.loads((UI_DIR / "locales/zh-CN.json").read_text())
     labels = {value: key for key, value in chinese.items() if key.startswith("backend.") and "{" not in value}
     result["quota"] = [dict(row) for row in result["quota"]]
     for row in result["quota"]:
@@ -1449,12 +1451,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_html(body)
             return
         if parsed.path in ("/", "/ui"):
-            body = UI_PATH.read_text()
-            catalogs = {language: json.loads((UI_PATH.parent / "locales" / f"{language}.json").read_text())
+            catalogs = {language: json.loads((UI_DIR / "locales" / f"{language}.json").read_text())
                         for language in ("en", "zh-CN")}
-            script = "const BILLING_MESSAGES = " + json.dumps(catalogs).replace("<", "\\u003c") + ";\n"
-            script += (UI_PATH.parent / "i18n.js").read_text()
-            body = body.replace("// BILLING_I18N", script)
+            messages = "const BILLING_MESSAGES = " + json.dumps(catalogs).replace("<", "\\u003c") + ";\n"
+
+            def include(match):
+                name = match.group(1)
+                return (messages if name == "i18n.js" else "") + (UI_DIR / name).read_text()
+
+            body = UI_INCLUDE.sub(include, (UI_DIR / "ui.html").read_text())
             if self.host_mode != "standalone":
                 body = body.replace(
                     "</head>",
