@@ -66,18 +66,6 @@ func TestAuthFilesExposeOnlyDisplayFieldsInCategoryOrder(t *testing.T) {
 	}
 }
 
-func TestNormalizeCodexPlan(t *testing.T) {
-	tests := map[string]string{
-		"plus": "plus", " PRO ": "pro-20x", "prolite": "pro-5x", "pro-lite": "pro-5x",
-		"pro_lite": "pro-5x", "pro-5x": "pro-5x", "pro-20x": "pro-20x", "Custom Plan": "Custom Plan",
-	}
-	for input, want := range tests {
-		if got := normalizeCodexPlan(input); got != want {
-			t.Errorf("normalizeCodexPlan(%q) = %q, want %q", input, got, want)
-		}
-	}
-}
-
 func TestAccountAuthFilesRequireTrackedAPIKey(t *testing.T) {
 	app := newConfiguredApp(t)
 	hostCalls := 0
@@ -355,7 +343,7 @@ func TestCodexQuotaPreservesAdditionalDynamicWindows(t *testing.T) {
 	if endpoint != "https://chatgpt.com/backend-api/wham/usage" {
 		t.Fatalf("endpoint = %q", endpoint)
 	}
-	if result.Plan != "pro-20x" || len(result.Quota) != 3 {
+	if result.Plan != "Pro 200" || len(result.Quota) != 3 {
 		t.Fatalf("quota = %+v", result)
 	}
 	if len(result.RateLimitResetCredits) != 1 || result.RateLimitResetCredits[0].ExpiresAt != "2026-10-04T02:27:00Z" {

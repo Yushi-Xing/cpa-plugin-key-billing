@@ -280,18 +280,22 @@ func authFileRevision(file hostAuthFile) string {
 	return file.ModTime.UTC().Format(time.RFC3339Nano)
 }
 
-func normalizeCodexPlan(plan string) string {
-	display := strings.TrimSpace(plan)
-	switch strings.ToLower(display) {
-	case "pro":
-		return "pro-20x"
-	case "prolite", "pro-lite", "pro_lite":
-		return "pro-5x"
-	case "free", "plus", "team", "pro-5x", "pro-20x", "enterprise":
-		return strings.ToLower(display)
-	default:
-		return display
+// Codex plans are labelled like the official Codex client.
+var codexPlanLabels = map[string]string{
+	"promax": "Pro 500", "pro": "Pro 200", "prolite": "Pro 100", "pro-lite": "Pro 100", "pro_lite": "Pro 100",
+	"plus": "Plus", "go": "Go", "free": "Free",
+	"self_serve_business_prolite": "Business Premium", "team": "Business", "self_serve_business_usage_based": "Business",
+	"business": "Enterprise", "enterprise": "Enterprise", "ent26": "Enterprise", "enterprise_cbp_usage_based": "Enterprise",
+	"hc": "Enterprise", "enterprise_cbp_automation": "Enterprise (Automation)",
+	"edu_pro": "Edu Pro", "edu_plus": "Edu Plus", "edu": "Edu", "education": "Edu",
+}
+
+func codexPlanLabel(plan string) string {
+	plan = strings.TrimSpace(plan)
+	if label := codexPlanLabels[strings.ToLower(plan)]; label != "" {
+		return label
 	}
+	return plan
 }
 
 func (a *App) listHostAuthFiles() ([]hostAuthFile, error) {
@@ -370,7 +374,7 @@ func (a *App) fetchAuthQuota(callbackID string, file hostAuthFile, provider stri
 	switch provider {
 	case "codex":
 		if plan := credentialString(credential, "plan_type", "planType"); plan != "" {
-			result.Plan = normalizeCodexPlan(plan)
+			result.Plan = codexPlanLabel(plan)
 		}
 		err = a.fetchCodexQuota(callbackID, token, credentialString(credential, "account_id", "accountId", "chatgpt_account_id", "chatgptAccountId"), &result)
 	case "claude":
@@ -490,7 +494,7 @@ func (a *App) fetchCodexQuota(callbackID, token, accountID string, result *authQ
 		return errCall
 	}
 	if plan := firstString(object, "plan_type", "planType"); plan != "" {
-		result.Plan = normalizeCodexPlan(plan)
+		result.Plan = codexPlanLabel(plan)
 	}
 	appendCodexRateLimit(result, "", objectMap(object, "rate_limit", "rateLimit"))
 	appendCodexRateLimit(result, "Code Review ", objectMap(object, "code_review_rate_limit", "codeReviewRateLimit"))

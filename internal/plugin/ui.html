@@ -5464,7 +5464,7 @@
         };
       }
 
-      const AUTH_QUOTA_CACHE_PREFIX = "cpa-key-billing.auth-quotas.v4.";
+      const AUTH_QUOTA_CACHE_PREFIX = "cpa-key-billing.auth-quotas.v5.";
 
       function resetAuthQuotaMemory(account) {
         const role = account ? "account" : "admin";
@@ -5564,24 +5564,6 @@
           owner === currentOwner && generation === authQuotaGeneration[role] &&
           (resources[role].authFiles.value || []).some((file) => file.auth_index === index)
         );
-      }
-
-      function authPlanLabel(category, value) {
-        const plan = String(value || "").trim();
-        if (!plan) return "";
-        if (category === "codex") {
-          const labels = new Map([
-            ["free", "Free"],
-            ["plus", "Plus"],
-            ["team", "Team"],
-            ["pro-5x", "Pro 5x"],
-            ["pro-20x", "Pro 20x"],
-            ["enterprise", "Enterprise"]
-          ]);
-          const known = labels.get(plan.toLocaleLowerCase());
-          if (known) return known;
-        }
-        return plan;
       }
 
       function filteredAuthFiles(account) {
@@ -5759,9 +5741,9 @@
             const statusText = file.disabled ? m("ui.disabled") : file.unavailable ? m("ui.unavailable") : m("ui.enabled");
             const statusClass = file.disabled ? "plain" : file.unavailable ? "bad" : "ok";
             const category = AUTH_CATEGORY_LABELS[file.category] || file.category || m("ui.unknown_2");
-            const plan = authPlanLabel(file.category, ui.owner.authQuotas.get(file.auth_index)?.plan);
+            const quota = ui.owner.authQuotas.get(file.auth_index);
             const seenMeta = new Set();
-            const meta = [category, plan].filter((value) => {
+            const meta = [category, quota?.plan].filter((value) => {
               const key = String(value || "").trim().toLocaleLowerCase();
               if (!key || seenMeta.has(key)) return false;
               seenMeta.add(key);
