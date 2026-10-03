@@ -395,92 +395,69 @@ tbody tr:hover { background: var(--bg-hover); }
 @media (max-width: 768px) {
   .head { min-height: 0; margin-bottom: 12px; }
 }
-.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); }
-.tabs button[data-tab], .tabs button[data-account-tab] {
-  flex: 0 0 auto;
-  min-height: 0;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 8px 14px;
-  background: none;
+.page-tabs-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow);
+}
+.page-tab-switcher { position: relative; flex: 1; min-width: 0; overflow: hidden; padding-block: 2px; }
+.tabs { display: flex; gap: 2px; width: max-content; }
+.tabs > button {
+  flex: none;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--text-secondary);
-  box-shadow: none;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.2;
   white-space: nowrap;
 }
-.tabs button[data-tab]:hover, .tabs button[data-account-tab]:hover { background: none; color: var(--text-primary); }
-.tabs button[data-tab].active, .tabs button[data-account-tab].active {
-  color: var(--text-primary);
-  border-bottom-color: var(--primary-color);
+.tabs > button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tabs > button.active {
+  color: var(--primary-active);
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--bg-primary));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 15%, transparent);
 }
-.page-tabs-row {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+@media (prefers-reduced-motion: no-preference) {
+  .tabs > button {
+    transition: background-color 0.15s, color 0.15s, box-shadow 0.2s, scale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), translate 0.2s;
+  }
+  .tabs > button.active:hover:not(:active) { translate: 0 -1px; }
+  .tabs > button:active { scale: 0.96; transition-duration: 0.08s; }
 }
-/* The mask and refresh buttons stay pinned to the tab row; only the filters wrap below it. */
-.page-tab-tools { display: flex; grid-column: 3; grid-row: 1; align-items: center; justify-self: end; gap: 8px; }
-.page-tab-actions {
-  display: flex;
-  grid-column: 1 / -1;
-  grid-row: 2;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 0;
-}
-.page-tabs-row.controls-inline .page-tab-actions { grid-column: 2; grid-row: 1; }
-.page-tabs-row.controls-inline .shared-time-filter, .page-tab-actions > button { flex: none; }
-/* Wrapped filters keep to a single line, so the range trigger shrinks with the key select. */
-.page-tabs-row:not(.controls-inline) .shared-time-filter > .time-range-control { flex: 0 1 auto; }
-.tab-refresh, .privacy-mask-button {
+.page-tab-select { display: none; width: 160px; }
+.page-tab-select > select { width: 100%; font-size: 13px; font-weight: 600; }
+/* Keep the hidden tabs measurable so the dropdown follows their translated width. */
+.page-navigation.compact .tabs { position: absolute; visibility: hidden; pointer-events: none; }
+.page-navigation.compact .page-tab-select { display: inline-flex; }
+.page-tab-tools { display: flex; flex: none; align-items: center; gap: 4px; }
+.page-tab-tools > .icon-action {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
   padding: 0;
-  border-radius: 50%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   line-height: 0;
 }
-.tab-refresh { display: none; }
-body.embedded .tab-refresh { display: grid; }
-.tabs-scroll {
-  --tabs-fade-surface: var(--bg-secondary);
-  position: relative;
-  width: max-content;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-.tabs-scroll > .tabs { width: max-content; max-width: 100%; margin-bottom: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
-.tabs-scroll::before, .tabs-scroll::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  bottom: 0;
-  width: 32px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.tabs-scroll::before {
-  left: -2px;
-  background: linear-gradient(to right, var(--tabs-fade-surface) 20%, transparent);
-  box-shadow: inset 4px 0 var(--tabs-fade-surface);
-}
-.tabs-scroll::after {
-  right: -2px;
-  background: linear-gradient(to left, var(--tabs-fade-surface) 20%, transparent);
-  box-shadow: inset -4px 0 var(--tabs-fade-surface);
-}
-.tabs-scroll.can-scroll-left::before, .tabs-scroll.can-scroll-right::after { opacity: 1; }
+:root .page-navigation button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+.page-tab-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.page-tab-actions > button { flex: none; }
+.shared-time-filter { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tag {
   display: inline-flex;
   align-items: center;
@@ -544,7 +521,8 @@ body.embedded .tab-refresh { display: grid; }
 /* CPAMP's top bar already shows the page title. */
 :root[data-cpamp-plugin-host="true"]:not([data-cpamp-standalone]) #app > .app-header { display: none; }
 /* CPAMC frames plugin pages edge to edge under its floating header, without the band that fades its other pages there. */
-:root:not([data-cpamp-plugin-host="true"]) .wrap { padding-top: 70px; }
+:root:not([data-cpamp-plugin-host="true"]) .wrap { padding: 70px clamp(20px, 3vw, 48px) 0; }
+:root:not([data-cpamp-plugin-host="true"]) .app-header { min-height: 0; margin-bottom: 24px; }
 :root:not([data-cpamp-plugin-host="true"]) body::before {
   content: "";
   position: fixed;
@@ -639,48 +617,23 @@ body.embedded .tab-refresh { display: grid; }
   box-shadow: none;
   line-height: 1.5;
 }
-:root[data-cpamp-plugin-host="true"] .tabs {
-  width: max-content;
-  max-width: 100%;
-  padding: 4px;
-  gap: 4px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-subtle, var(--bg-tertiary)) 78%, var(--bg-primary));
-  box-shadow: inset 0 1px 2px #0f17210d;
-  scrollbar-width: none;
+:root[data-cpamp-plugin-host="true"] .page-navigation {
+  border-color: var(--glass-border, var(--border-color));
+  border-radius: 999px;
+  background: var(--glass-bg, var(--bg-primary));
+  box-shadow: var(--glass-shadow, none);
+  backdrop-filter: var(--glass-backdrop-filter, none);
 }
-:root[data-cpamp-plugin-host="true"] .tabs-scroll {
-  --tabs-fade-surface: color-mix(in srgb, var(--surface-subtle, var(--bg-tertiary)) 78%, var(--bg-primary));
-  border-radius: 14px;
-}
-:root[data-cpamp-plugin-host="true"] .tabs::-webkit-scrollbar { display: none; }
-:root[data-cpamp-plugin-host="true"] .tabs button[data-tab], :root[data-cpamp-plugin-host="true"] .tabs button[data-account-tab] {
-  flex: 0 0 auto;
-  min-height: 34px;
+:root[data-cpamp-plugin-host="true"] .tabs > button {
   padding: 0 15px;
-  border: 0;
-  border-radius: 10px;
+  border-radius: 999px;
   background: transparent;
   color: color-mix(in srgb, var(--text-secondary) 84%, var(--text-primary));
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
 }
-:root[data-cpamp-plugin-host="true"] .tabs button[data-tab]:hover,
-:root[data-cpamp-plugin-host="true"] .tabs button[data-account-tab]:hover {
-  border: 0;
-  background: color-mix(in srgb, var(--primary-color) 6%, var(--bg-primary));
-  color: var(--primary-active);
+:root[data-cpamp-plugin-host="true"] .page-tab-tools > .icon-action, :root[data-cpamp-plugin-host="true"] .page-tab-select > select {
+  border-radius: 999px;
 }
-:root[data-cpamp-plugin-host="true"] .tabs button[data-tab].active,
-:root[data-cpamp-plugin-host="true"] .tabs button[data-tab].active:hover,
-:root[data-cpamp-plugin-host="true"] .tabs button[data-account-tab].active,
-:root[data-cpamp-plugin-host="true"] .tabs button[data-account-tab].active:hover {
-  border: 0;
+:root[data-cpamp-plugin-host="true"] .tabs > button.active {
   background: color-mix(in srgb, var(--bg-primary) 88%, var(--primary-color));
   color: var(--primary-active);
   box-shadow: 0 1px 3px #0f17211a, inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 16%, transparent);
@@ -698,19 +651,7 @@ body.embedded .tab-refresh { display: grid; }
 .quota-fill.medium { background: var(--quota-medium-color); }
 .quota-fill.low { background: var(--quota-low-color); }
 @media (prefers-reduced-motion: reduce) {
-  body,
-  button,
-  input,
-  select,
-  textarea,
-  .quota-fill,
-  .account-model-card,
-  .auth-file-card,
-  .lucide-chevron-icon,
-  .tabs-scroll::before,
-  .tabs-scroll::after {
-    transition: none;
-  }
+  body, button, input, select, textarea, .quota-fill, .account-model-card, .auth-file-card, .lucide-chevron-icon { transition: none; }
 }
 .concurrency-editor { display: flex; align-items: center; gap: 7px; min-width: 172px; }
 .concurrency-editor .native-select, .concurrency-editor select { width: 96px; min-width: 96px; }
@@ -847,6 +788,16 @@ button.key-copy-button.copied, button.key-copy-button.copied:hover { color: var(
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   color: var(--text-primary);
 }
+.app-title h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+}
+.app-title .lucide-icon { width: 26px; height: 26px; color: var(--primary-color); }
 .standalone-actions .icon-action:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 26%, transparent);
@@ -1894,7 +1845,7 @@ html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
   :root { --page-gap: 12px; }
   .wrap { padding: 14px 12px 0; }
   .account-subscription-stats { grid-template-columns: 1fr; }
-  :root:not([data-cpamp-plugin-host="true"]) .wrap { padding-top: 90px; }
+  :root:not([data-cpamp-plugin-host="true"]) .wrap { padding: calc(90px + env(safe-area-inset-top)) 16px 0; }
   :root:not([data-cpamp-plugin-host="true"]) body::before { height: 114px; }
   .section-toolbar { align-items: center; }
   .section-toolbar > .section-actions {
@@ -1969,9 +1920,6 @@ html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
   body:not(.embedded) .app-header, body:not(.embedded) .app-header .app-title { gap: 7px; }
   body:not(.embedded) .standalone-actions .icon-action { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
 }
-.shared-time-filter { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
-.shared-time-filter > .native-select { flex: 0 1 auto; }
-.shared-time-filter > .time-range-control { flex: none; }
 .labeled-icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
 .labeled-icon-button .lucide-icon { width: 15px; height: 15px; color: var(--text-tertiary); }
 .privacy-mask-button[aria-pressed="true"], .privacy-mask-button[aria-pressed="true"] .lucide-icon { color: var(--primary-active); }
@@ -2103,26 +2051,20 @@ html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
   .usage-distribution-chart { width: min(240px, 75vw); height: min(240px, 75vw); }
 }
 @media (max-width: 640px) {
-  .page-tabs-row { gap: 12px; }
-  .page-tab-actions { gap: 6px; }
-  /* Splitting the line evenly stops a long key list from crowding out the range. */
-  .page-tabs-row:not(.controls-inline) .shared-time-filter { flex: 1 1 auto; gap: 6px; }
-  .page-tabs-row:not(.controls-inline) .shared-time-filter > .native-select { flex: 1 1 0; max-width: none; }
-  .page-tabs-row:not(.controls-inline) .shared-time-filter > .time-range-control { flex: 1 1 0; }
-  .page-tabs-row:not(.controls-inline) .shared-time-filter > .native-select > select {
-    padding-left: 8px;
-    padding-right: 26px;
-    width: 100%;
-  }
-  .page-tabs-row:not(.controls-inline) .shared-time-filter > .native-select::after { right: 6px; width: 16px; height: 16px; }
+  /* The icon-only export leaves the rest of the line for equally sized filters. */
+  .shared-time-filter, .shared-time-filter > * { flex: 1 1 0; }
+  .shared-time-filter > .native-select { max-width: none; }
+  .shared-time-filter > .native-select > select { width: 100%; padding-left: 8px; padding-right: 26px; }
+  .shared-time-filter > .native-select::after { right: 6px; width: 16px; height: 16px; }
+  .time-range-trigger { --button-padding-inline: 8px; gap: 6px; }
+  .time-range-chevron { width: 16px; height: 16px; margin-left: 0; }
+  .page-tab-actions > .labeled-icon-button { --button-padding-inline: 9px; }
+  .page-tab-actions > .labeled-icon-button > .labeled-icon-text { display: none; }
   /* Wrapping chips need the full width; a short value still fits beside its label. */
   .settings-entry-field:has(.settings-chip-list) { display: grid; gap: 4px; }
   .settings-entry-field:has(.settings-chip-list) > .error-event-field-label { max-width: none; }
 }
 @media (max-width: 520px) {
-  /* The tab-row buttons go icon-only; their aria-label and title still name them. */
-  .page-tabs-row .labeled-icon-button > .labeled-icon-text { display: none; }
-  .page-tabs-row .labeled-icon-button { --button-padding-inline: 9px; }
   .usage-distribution-controls { gap: 6px; width: 100%; }
   .usage-distribution-tabs { gap: 4px; --button-padding-inline: 4px; }
   .usage-distribution-tabs button { font-size: 12px; }

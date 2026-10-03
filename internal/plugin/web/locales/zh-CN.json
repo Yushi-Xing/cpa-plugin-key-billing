@@ -80,6 +80,8 @@
   "ui.no_billing_records_yet": "暂无用量记录",
   "ui.this_api_key_is_valid_but_the_plugin_has_not_received_any_attributable_usage_yet": "此 API Key 已通过验证。插件收到可归属到该 Key 的用量记录后，将在此显示。",
   "ui.api_key_views": "API Key 查询功能",
+  "ui.management_views": "管理功能",
+  "ui.select_view": "选择页面",
   "ui.subscription": "订阅",
   "ui.remaining_subscription_quota": "订阅剩余额度",
   "ui.concurrency_limit": "并发限制",

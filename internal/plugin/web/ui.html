@@ -44,25 +44,40 @@
 
       <main id="app" class="hidden">
         <header class="head app-header">
-          <div class="app-title"><h1 data-i18n="ui.api_key_billing">API Key Billing</h1></div>
+          <div class="app-title"><h1><span data-lucide-icon="key" aria-hidden="true"></span><span data-i18n="ui.api_key_billing">API Key Billing</span></h1></div>
           <div class="standalone-actions" aria-label="Page actions" data-i18n-aria-label="ui.page_actions">
-            <button type="button" class="icon-action" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
             <button type="button" class="icon-action" data-page-action="theme" aria-label="Switch theme" data-i18n-aria-label="ui.switch_theme"></button>
             <button type="button" class="icon-action" data-page-action="logout" aria-label="Sign out" data-i18n-aria-label="ui.sign_out"></button>
           </div>
         </header>
 
         <div class="page-tabs-row">
-          <div class="tabs-scroll">
-            <div class="tabs">
-              <button data-tab="keys" class="active">API Key</button>
-              <button data-tab="analysis" data-i18n="ui.analysis">Analysis</button>
-              <button data-tab="request-events" data-i18n="ui.request_events">Request events</button>
-              <button data-tab="errors" data-i18n="ui.error_events">Error events</button>
-              <button data-tab="auth-files" data-i18n="ui.auth_files">Auth Files</button>
-              <button data-tab="settings" data-i18n="ui.settings">Settings</button>
+          <nav class="page-navigation" aria-label="Management views" data-i18n-aria-label="ui.management_views">
+            <div class="page-tab-switcher">
+              <div class="tabs">
+                <button type="button" data-tab="keys" class="active">API Key</button>
+                <button type="button" data-tab="analysis" data-i18n="ui.analysis">Analysis</button>
+                <button type="button" data-tab="request-events" data-i18n="ui.request_events">Request events</button>
+                <button type="button" data-tab="errors" data-i18n="ui.error_events">Error events</button>
+                <button type="button" data-tab="auth-files" data-i18n="ui.auth_files">Auth Files</button>
+                <button type="button" data-tab="settings" data-i18n="ui.settings">Settings</button>
+              </div>
+              <span class="native-select page-tab-select">
+                <select id="page-tab-select" aria-label="Select view" data-i18n-aria-label="ui.select_view"></select>
+              </span>
             </div>
-          </div>
+            <div class="page-tab-tools">
+              <button
+                id="privacy-mask"
+                class="icon-action privacy-mask-button"
+                type="button"
+                aria-pressed="false"
+                title="Blur API keys, labels, and account emails"
+                data-i18n-title="ui.blur_api_keys_labels_and_account_emails"
+              ></button>
+              <button type="button" class="icon-action" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
+            </div>
+          </nav>
           <div class="page-tab-actions hidden">
             <div id="shared-time-filter" class="shared-time-filter hidden">
               <span class="native-select mask-select">
@@ -77,18 +92,7 @@
                 <div id="shared-time-popover" class="time-range-popover hidden" role="dialog" aria-label="Select time range" data-i18n-aria-label="ui.select_time_range"></div>
               </div>
             </div>
-            <button id="events-export" class="labeled-icon-button hidden" type="button" data-i18n="ui.export">Export</button>
-          </div>
-          <div class="page-tab-tools">
-            <button
-              id="privacy-mask"
-              class="icon-action privacy-mask-button"
-              type="button"
-              aria-pressed="false"
-              title="Blur API keys, labels, and account emails"
-              data-i18n-title="ui.blur_api_keys_labels_and_account_emails"
-            ></button>
-            <button type="button" class="icon-action tab-refresh" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
+            <button id="events-export" class="labeled-icon-button hidden" type="button" title="Export" data-i18n-title="ui.export" data-i18n="ui.export">Export</button>
           </div>
         </div>
         <div id="shared-time-backdrop" class="time-range-backdrop hidden"></div>
@@ -294,9 +298,11 @@
 
       <main id="account-app" class="hidden">
         <header class="head app-header">
-          <div class="app-title"> <h1 data-i18n="ui.api_key_usage">API Key Usage</h1> <span id="account-identity" class="muted mono mask-blur"></span> </div>
+          <div class="app-title">
+            <h1><span data-lucide-icon="key" aria-hidden="true"></span><span data-i18n="ui.api_key_usage">API Key Usage</span></h1>
+            <span id="account-identity" class="muted mono mask-blur"></span>
+          </div>
           <div class="standalone-actions" aria-label="Page actions" data-i18n-aria-label="ui.page_actions">
-            <button type="button" class="icon-action" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
             <button type="button" class="icon-action" data-page-action="theme" aria-label="Switch theme" data-i18n-aria-label="ui.switch_theme"></button>
             <button type="button" class="icon-action" data-page-action="logout" aria-label="Sign out" data-i18n-aria-label="ui.sign_out"></button>
           </div>
@@ -308,15 +314,31 @@
         </section>
         <section id="account-content">
           <div class="page-tabs-row">
-            <div class="tabs-scroll">
-              <nav class="tabs" aria-label="API key views" data-i18n-aria-label="ui.api_key_views">
-                <button type="button" class="active" data-account-tab="subscription" data-i18n="ui.subscription">Subscription</button>
-                <button type="button" data-account-tab="analysis" data-i18n="ui.analysis">Analysis</button>
-                <button type="button" data-account-tab="request-events" data-i18n="ui.request_events">Request events</button>
-                <button type="button" data-account-tab="errors" data-i18n="ui.error_events">Error events</button>
-                <button type="button" data-account-tab="auth-files" data-i18n="ui.auth_files">Auth Files</button>
-              </nav>
-            </div>
+            <nav class="page-navigation" aria-label="API key views" data-i18n-aria-label="ui.api_key_views">
+              <div class="page-tab-switcher">
+                <div class="tabs">
+                  <button type="button" class="active" data-account-tab="subscription" data-i18n="ui.subscription">Subscription</button>
+                  <button type="button" data-account-tab="analysis" data-i18n="ui.analysis">Analysis</button>
+                  <button type="button" data-account-tab="request-events" data-i18n="ui.request_events">Request events</button>
+                  <button type="button" data-account-tab="errors" data-i18n="ui.error_events">Error events</button>
+                  <button type="button" data-account-tab="auth-files" data-i18n="ui.auth_files">Auth Files</button>
+                </div>
+                <span class="native-select page-tab-select">
+                  <select id="account-page-tab-select" aria-label="Select view" data-i18n-aria-label="ui.select_view"></select>
+                </span>
+              </div>
+              <div class="page-tab-tools">
+                <button
+                  id="account-privacy-mask"
+                  class="icon-action privacy-mask-button"
+                  type="button"
+                  aria-pressed="false"
+                  title="Blur API keys, labels, and account emails"
+                  data-i18n-title="ui.blur_api_keys_labels_and_account_emails"
+                ></button>
+                <button type="button" class="icon-action" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
+              </div>
+            </nav>
             <div class="page-tab-actions hidden">
               <div id="account-shared-time-filter" class="shared-time-filter hidden">
                 <div class="time-range-control">
@@ -334,18 +356,7 @@
                   <div id="account-shared-time-popover" class="time-range-popover hidden" role="dialog" aria-label="Select time range" data-i18n-aria-label="ui.select_time_range"></div>
                 </div>
               </div>
-              <button id="account-events-export" class="labeled-icon-button hidden" type="button" data-i18n="ui.export">Export</button>
-            </div>
-            <div class="page-tab-tools">
-              <button
-                id="account-privacy-mask"
-                class="icon-action privacy-mask-button"
-                type="button"
-                aria-pressed="false"
-                title="Blur API keys, labels, and account emails"
-                data-i18n-title="ui.blur_api_keys_labels_and_account_emails"
-              ></button>
-              <button type="button" class="icon-action tab-refresh" data-page-action="refresh" aria-label="Refresh" data-i18n-aria-label="ui.refresh"></button>
+              <button id="account-events-export" class="labeled-icon-button hidden" type="button" title="Export" data-i18n-title="ui.export" data-i18n="ui.export">Export</button>
             </div>
           </div>
           <div id="account-shared-time-backdrop" class="time-range-backdrop hidden"></div>

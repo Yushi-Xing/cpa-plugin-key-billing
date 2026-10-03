@@ -206,30 +206,42 @@ function activeTab(account) {
   return account ? accountTab : document.querySelector(".tabs button[data-tab].active")?.dataset.tab || "keys";
 }
 
-const TAB_BARS = Array.from(document.querySelectorAll(".tabs-scroll > .tabs"));
 const PAGE_TAB_ROWS = Array.from(document.querySelectorAll(".page-tabs-row"));
 let tabLayoutFrame = 0;
+
+// The select stands in for the tab bar when the tabs do not fit; it mirrors their labels and active tab.
+for (const row of PAGE_TAB_ROWS) {
+  const select = row.querySelector(".page-tab-select > select");
+  const tabs = Array.from(row.querySelectorAll(".tabs > button"));
+  const tabName = (button) => button.dataset.tab || button.dataset.accountTab;
+  select.replaceChildren(...tabs.map((button) => el("option", { value: tabName(button) }, window.billingI18n.boundText(button))));
+  select.onchange = () => {
+    tabs.find((button) => tabName(button) === select.value).click();
+    // A refused switch leaves the previous tab active.
+    select.value = tabName(tabs.find((button) => button.classList.contains("active")));
+  };
+}
 
 function updatePageTabLayouts() {
   tabLayoutFrame = 0;
   for (const row of PAGE_TAB_ROWS) {
     if (!row.getClientRects().length) continue;
-    const tabBar = row.querySelector(".tabs-scroll > .tabs");
+    const switcher = row.querySelector(".page-tab-switcher");
+    const tabBar = switcher.querySelector(".tabs");
+    const select = switcher.querySelector("select");
+    const compact = tabBar.scrollWidth > switcher.clientWidth + 1;
+    const focusedTab = tabBar.contains(document.activeElement);
+    const focusedSelect = document.activeElement === select;
+    row.querySelector(".page-navigation").classList.toggle("compact", compact);
+    // Keyboard focus moves to whichever control is now shown.
+    if (compact && focusedTab) select.focus({ preventScroll: true });
+    if (!compact && focusedSelect) tabBar.querySelector(".active").focus({ preventScroll: true });
     const actions = row.querySelector(".page-tab-actions");
     const hasControls = Array.from(actions.children).some((node) => !node.classList.contains("hidden"));
     actions.classList.toggle("hidden", !hasControls);
-    row.classList.toggle("controls-inline", hasControls);
-    const actionBounds = actions.getBoundingClientRect();
-    const actionsOverflow = Array.from(actions.children).some((child) => {
-      if (!child.getClientRects().length) return false;
-      const bounds = child.getBoundingClientRect();
-      return bounds.left < actionBounds.left - 1 || bounds.right > actionBounds.right + 1;
-    });
-    if (hasControls && (tabBar.scrollWidth > tabBar.clientWidth + 1 || actionsOverflow)) { row.classList.remove("controls-inline"); }
     const card = Array.from(row.parentElement.querySelectorAll(".event-list-card")).find((card) => card.getClientRects().length);
     if (card) row.parentElement.style.setProperty("--event-list-top", card.getBoundingClientRect().top + scrollY + "px");
     positionSharedTimePopover(!!row.closest("#account-app"));
-    updateTabScrollHint(tabBar);
   }
 }
 
@@ -240,35 +252,9 @@ function schedulePageTabLayout() {
 
 addEventListener("resize", schedulePageTabLayout);
 const pageTabResizeObserver = new ResizeObserver(schedulePageTabLayout);
-for (const header of document.querySelectorAll(".head, #admin-data-status, #account-data-status")) {
-  pageTabResizeObserver.observe(header, { box: "border-box" });
+for (const element of document.querySelectorAll(".head, #admin-data-status, #account-data-status, .page-tabs-row, .page-tabs-row .tabs")) {
+  pageTabResizeObserver.observe(element, { box: "border-box" });
 }
-for (const row of PAGE_TAB_ROWS) {
-  pageTabResizeObserver.observe(row, { box: "border-box" });
-  for (const control of row.querySelectorAll("button, select, .toggle-filter")) {
-    pageTabResizeObserver.observe(control, { box: "border-box" });
-  }
-}
-
-function updateTabScrollHint(tabBar) {
-  const maxScrollLeft = tabBar.scrollWidth - tabBar.clientWidth;
-  const frame = tabBar.parentElement;
-  frame.classList.toggle("can-scroll-left", tabBar.scrollLeft > 2);
-  frame.classList.toggle("can-scroll-right", tabBar.scrollLeft < maxScrollLeft - 2);
-}
-
-function revealTab(tab) {
-  requestAnimationFrame(() => {
-    const tabBar = tab.parentElement;
-    tabBar.scrollTo({
-      left: tab.offsetLeft - (tabBar.clientWidth - tab.offsetWidth) / 2,
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
-    });
-    updateTabScrollHint(tabBar);
-  });
-}
-
-for (const tabBar of TAB_BARS) { tabBar.addEventListener("scroll", () => updateTabScrollHint(tabBar), { passive: true }); }
 
 function setAccountTab(tab) {
   accountTab = ACCOUNT_TAB_IDS.includes(tab) ? tab : "subscription";
@@ -276,14 +262,14 @@ function setAccountTab(tab) {
   document.querySelectorAll("[data-account-tab]").forEach((button) => {
     const active = button.dataset.accountTab === accountTab;
     button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
+    button.setAttribute("aria-current", active ? "page" : "false");
   });
+  $("account-page-tab-select").value = accountTab;
   for (const name of ACCOUNT_TAB_IDS) { $("account-tab-" + name).classList.toggle("hidden", name !== accountTab); }
   $("account-shared-time-filter").classList.toggle("hidden", !["analysis", "request-events", "errors"].includes(accountTab));
   $("account-events-export").classList.toggle("hidden", !["request-events", "errors"].includes(accountTab));
   if (!["analysis", "request-events", "errors"].includes(accountTab)) { closeSharedTimePopover(true); }
   schedulePageTabLayout();
-  revealTab(document.querySelector(`[data-account-tab="${accountTab}"]`));
 }
 
 const TABS = Array.from(document.querySelectorAll(".tabs button[data-tab]"));
@@ -295,8 +281,9 @@ function setAdminTab(name) {
   for (const tab of TABS) {
     const active = tab.dataset.tab === selected;
     tab.classList.toggle("active", active);
-    tab.setAttribute("aria-selected", String(active));
+    tab.setAttribute("aria-current", active ? "page" : "false");
   }
+  $("page-tab-select").value = selected;
   const visible = selected === "settings" ? new Set(["plans", "routes", "prices", "plugin-logs"]) : new Set([selected]);
   for (const section of ["keys", "analysis", "plans", "routes", "prices", "request-events", "errors", "auth-files", "plugin-logs"]) {
     $("tab-" + section).classList.toggle("hidden", !visible.has(section));
@@ -305,7 +292,6 @@ function setAdminTab(name) {
   $("events-export").classList.toggle("hidden", !["request-events", "errors"].includes(selected));
   if (!["analysis", "request-events", "errors"].includes(selected)) { closeSharedTimePopover(false); }
   schedulePageTabLayout();
-  revealTab(document.querySelector(`[data-tab="${selected}"]`));
 }
 for (const tab of TABS)
   tab.onclick = () => {
