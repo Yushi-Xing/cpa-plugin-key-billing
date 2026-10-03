@@ -480,6 +480,7 @@ AUTH_FILE_QUOTAS = {
     },
     "auth-demo-claude": {
         "plan": "Team",
+        "rate_limit_reset_credits_available_count": 1,
         "quota": [
             quota_row("5 小时限额", 76, 12600),
             quota_row("周限额", 59, 388800),
@@ -1540,7 +1541,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": {"message": "Invalid quota reset request ID"}})
         elif auth_file is None or quota is None:
             self.send_json(404, {"error": {"message": "Auth file does not exist"}})
-        elif auth_file["category"] != "codex" or auth_file.get("disabled"):
+        elif auth_file["category"] not in {"codex", "claude"} or auth_file.get("disabled"):
             self.send_json(422, {"error": {"message": "This auth file cannot reset quotas"}})
         elif query.get("auth_revision") != [auth_file["cache_revision"]] or query.get("auth_name") != [auth_file["name"]]:
             self.send_json(409, {"error": {"message": "Auth file changed; refresh the auth file list and try again"}})

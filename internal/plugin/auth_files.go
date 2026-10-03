@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -156,7 +157,13 @@ func (a *App) authQuotaReset(req ManagementRequest, access viewAccess) Managemen
 	if selected == nil {
 		return failure
 	}
-	if authCategory(selected.Type) != "codex" {
+	var reset func(string, hostAuthFile, string) error
+	switch authCategory(selected.Type) {
+	case "codex":
+		reset = a.resetCodexQuota
+	case "claude":
+		reset = a.resetClaudeQuota
+	default:
 		return viewJSONError(access, http.StatusUnprocessableEntity, "unsupported", "Quota resets are not supported for this auth file type")
 	}
 	name := selected.Name
@@ -166,7 +173,7 @@ func (a *App) authQuotaReset(req ManagementRequest, access viewAccess) Managemen
 	if !req.Query.Has("auth_revision") || req.Query.Get("auth_revision") != authFileRevision(*selected) || req.Query.Get("auth_name") != name {
 		return viewJSONError(access, http.StatusConflict, "auth_file_changed", "Auth file changed; refresh the auth file list and try again")
 	}
-	if errReset := a.resetCodexQuota(req.HostCallbackID, *selected, resetID); errReset != nil {
+	if errReset := reset(req.HostCallbackID, *selected, resetID); errReset != nil {
 		return viewDetailedError(access, http.StatusBadGateway, "reset_failed", errReset)
 	}
 	// Refresh separately so a failed query cannot obscure a successful reset.
@@ -433,6 +440,182 @@ func (a *App) resetCodexQuota(callbackID string, file hostAuthFile, resetID stri
 		token, headers, map[string]string{"redeem_request_id": resetID},
 	)
 	return errCall
+}
+
+var (
+	errClaudeResetNotLimited = messages.Errorf("No reset was used: the Claude account is not rate limited")
+	errClaudeResetCooldown   = messages.Errorf("No reset was used: a Claude reset cooldown is active")
+	errClaudeResetUnusable   = messages.Errorf("No reset was used: no Claude reset grant is usable")
+)
+
+var (
+	claudeOrganizationPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	claudeResetGrantIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,40}$`)
+)
+
+// The claim re-reads the grants and spends one only when it is usable now.
+func (a *App) resetClaudeQuota(callbackID string, file hostAuthFile, resetID string) error {
+	credential, errCredential := a.readAuthCredential(file)
+	if errCredential != nil {
+		return errCredential
+	}
+	token := credentialToken(credential)
+	if token == "" {
+		return messages.Errorf("Auth file has no usable credentials")
+	}
+	headers := http.Header{"Anthropic-Beta": {"oauth-2025-04-20"}}
+	profile, errProfile := a.upstream(callbackID, http.MethodGet, "https://api.anthropic.com/api/oauth/profile", token, headers, nil)
+	if errProfile != nil {
+		return errProfile
+	}
+	organization := strings.ToLower(firstString(objectMap(profile, "organization"), "uuid"))
+	if !claudeOrganizationPattern.MatchString(organization) {
+		return messages.Errorf("Invalid upstream response")
+	}
+	status, errStatus := a.claudeResetStatus(callbackID, token, headers)
+	if errStatus != nil {
+		return errStatus
+	}
+	grantID, errGrant := status.usableGrant(time.Now())
+	if errGrant != nil {
+		return errGrant
+	}
+	response, errClaim := a.upstreamCall(
+		callbackID, http.MethodPost, "https://api.anthropic.com/api/organizations/"+organization+"/reset_rate_limits",
+		token, headers, map[string]string{"program": "cedar_ember", "grant_id": grantID, "request_id": resetID},
+	)
+	if errClaim != nil {
+		return errClaim
+	}
+	switch firstString(response, "result") {
+	case "reset", "already_used":
+		return nil
+	case "not_limited":
+		return errClaudeResetNotLimited
+	case "cooldown":
+		return errClaudeResetCooldown
+	case "ineligible", "unavailable":
+		return errClaudeResetUnusable
+	}
+	return messages.Errorf("Claude did not confirm the reset")
+}
+
+func (a *App) claudeResetStatus(callbackID, token string, headers http.Header) (claudeResetStatus, error) {
+	object, errCall := a.upstream(callbackID, http.MethodGet, "https://api.anthropic.com/api/oauth/usage?cedar_ember=1&skip_spend=1", token, headers, nil)
+	if errCall != nil {
+		return claudeResetStatus{}, errCall
+	}
+	status, ok := parseClaudeResetStatus(objectMap(object, "cedar_ember"))
+	if !ok {
+		return claudeResetStatus{}, messages.Errorf("Invalid upstream response")
+	}
+	return status, nil
+}
+
+// claudeResetStatus is Anthropic's cedar_ember reset-grant block.
+type claudeResetStatus struct {
+	eligible, atLimit bool
+	next              string
+	cooldownUntil     time.Time
+	grants            []claudeResetGrant
+}
+
+type claudeResetGrant struct {
+	id                         string
+	left                       int
+	startsAt, endsAt           time.Time
+	paused, usable, needsLimit bool
+}
+
+// One malformed grant rejects the whole block, so a partial read never offers a reset.
+func parseClaudeResetStatus(block map[string]any) (claudeResetStatus, bool) {
+	eligible, okEligible := block["eligible"].(bool)
+	rawGrants, okGrants := block["grants"].([]any)
+	atLimit, okLimit := strictFlag(block, "at_limit", false)
+	cooldown, okCooldown := strictTime(block, "cooldown_until")
+	if !okEligible || block["grants"] != nil && !okGrants || !okLimit || !okCooldown {
+		return claudeResetStatus{}, false
+	}
+	status := claudeResetStatus{eligible: eligible, atLimit: atLimit, cooldownUntil: cooldown}
+	seen := map[string]bool{}
+	for _, raw := range rawGrants {
+		item, _ := raw.(map[string]any)
+		grant, ok := parseClaudeResetGrant(item)
+		if !ok || seen[grant.id] {
+			return claudeResetStatus{}, false
+		}
+		seen[grant.id] = true
+		status.grants = append(status.grants, grant)
+	}
+	if next, _ := block["next_grant_id"].(string); seen[next] {
+		status.next = next
+	}
+	return status, true
+}
+
+func parseClaudeResetGrant(item map[string]any) (claudeResetGrant, bool) {
+	id, _ := item["id"].(string)
+	total, okTotal := item["resets_total"].(float64)
+	left, okLeft := item["resets_left"].(float64)
+	startsAt, okStart := strictTime(item, "starts_at")
+	endsAt, okEnd := strictTime(item, "ends_at")
+	paused, okPaused := strictFlag(item, "paused", false)
+	// A grant that does not say it is usable is not offered for spending.
+	usable, okUsable := strictFlag(item, "usable_now", false)
+	needsLimit, okNeeds := strictFlag(item, "use_requires_limit", true)
+	ok := claudeResetGrantIDPattern.MatchString(id) && okTotal && okLeft && left >= 0 && left <= total &&
+		left == math.Trunc(left) && total == math.Trunc(total) && okStart && okEnd && okPaused && okUsable && okNeeds
+	return claudeResetGrant{id: id, left: int(left), startsAt: startsAt, endsAt: endsAt, paused: paused, usable: usable, needsLimit: needsLimit}, ok
+}
+
+// usableGrant prefers the upstream recommendation, then the lowest usable ID.
+func (s claudeResetStatus) usableGrant(now time.Time) (string, error) {
+	if s.cooldownUntil.After(now) {
+		return "", errClaudeResetCooldown
+	}
+	var usable []string
+	notLimited := false
+	for _, grant := range s.grants {
+		if !s.eligible || grant.paused || !grant.usable || grant.left <= 0 || grant.startsAt.After(now) || !grant.endsAt.IsZero() && !grant.endsAt.After(now) {
+			continue
+		}
+		if grant.needsLimit && !s.atLimit {
+			notLimited = true
+			continue
+		}
+		if grant.id == s.next {
+			return grant.id, nil
+		}
+		usable = append(usable, grant.id)
+	}
+	if len(usable) > 0 {
+		return slices.Min(usable), nil
+	}
+	if notLimited {
+		return "", errClaudeResetNotLimited
+	}
+	return "", errClaudeResetUnusable
+}
+
+func strictFlag(object map[string]any, key string, fallback bool) (bool, bool) {
+	switch value := object[key].(type) {
+	case nil:
+		return fallback, true
+	case bool:
+		return value, true
+	}
+	return false, false
+}
+
+func strictTime(object map[string]any, key string) (time.Time, bool) {
+	switch value := object[key].(type) {
+	case nil:
+		return time.Time{}, true
+	case string:
+		parsed, err := time.Parse(time.RFC3339, value)
+		return parsed, err == nil
+	}
+	return time.Time{}, false
 }
 
 func (a *App) upstream(callbackID, method, endpoint, token string, headers http.Header, body any) (map[string]any, error) {
@@ -720,6 +903,13 @@ func (a *App) fetchClaudeQuota(callbackID, token string, result *authQuotaRespon
 			}
 			result.Quota = append(result.Quota, row)
 		}
+	}
+	if status, errStatus := a.claudeResetStatus(callbackID, token, headers); errStatus == nil {
+		count := 0
+		for _, grant := range status.grants {
+			count += grant.left
+		}
+		result.RateLimitResetCreditsAvailableCount = &count
 	}
 	if profile, errProfile := a.upstream(callbackID, http.MethodGet, "https://api.anthropic.com/api/oauth/profile", token, headers, nil); errProfile == nil {
 		account, organization := objectMap(profile, "account"), objectMap(profile, "organization")

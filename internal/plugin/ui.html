@@ -5819,7 +5819,7 @@
           });
           const loading = ui.owner.authQuotaLoading.has(file.auth_index);
           const resettable =
-            file.category === "codex" && (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
+            (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
             Number.isFinite(quota?.rate_limit_reset_credits_available_count);
           const actions = [
             resettable &&
@@ -5934,7 +5934,7 @@
           return false;
         const owner = account ? accountUIState : adminUIState;
         return (
-          file.category === "codex" && file.quota_supported && !file.disabled && !owner.authQuotaLoading.has(file.auth_index) &&
+          file.quota_supported && !file.disabled && !owner.authQuotaLoading.has(file.auth_index) &&
           Number(owner.authQuotas.get(file.auth_index)?.rate_limit_reset_credits_available_count) > 0
         );
       }
@@ -5944,7 +5944,7 @@
         const owner = account ? accountUIState : adminUIState;
         const generation = authQuotaGeneration[account ? "account" : "admin"], index = file.auth_index;
         await openActionDialog(
-          m("ui.reset_codex_quota"),
+          m("ui.reset_quota"),
           m("ui.available_resets_value_use_one_reset_now", {
             v0: int(owner.authQuotas.get(index).rate_limit_reset_credits_available_count),
             v1: file.name
@@ -5994,7 +5994,7 @@
               notify(
                 failed
                   ? m("ui.quota_reset_but_refresh_failed_please_update_the_quota_manually")
-                  : m("ui.reset_codex_quota_for_value", { v0: file.name }),
+                  : m("ui.reset_quota_for_value", { v0: file.name }),
                 failed ? "err" : "ok"
               );
             }

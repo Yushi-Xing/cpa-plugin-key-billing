@@ -472,6 +472,49 @@ func TestClaudeQuotaUsesFableLimitAndCanonicalTeamPlan(t *testing.T) {
 	}
 }
 
+func TestClaudeResetSpendsOnlyAUsableGrant(t *testing.T) {
+	const resetID = "00112233-4455-4677-8899-aabbccddeeff"
+	grants := `[{"id":"a","resets_total":1,"resets_left":1,"usable_now":true},{"id":"b","resets_total":1,"resets_left":1,"usable_now":true}]`
+	for _, tc := range []struct {
+		name, status, result, claimed, want string
+	}{
+		{"recommended grant", `{"eligible":true,"at_limit":true,"next_grant_id":"b","grants":` + grants + `}`, `{"result":"reset"}`, "b", ""},
+		{"not rate limited", `{"eligible":true,"at_limit":false,"grants":` + grants + `}`, "", "", errClaudeResetNotLimited.Error()},
+		{"unconfirmed result", `{"eligible":true,"at_limit":true,"grants":` + grants + `}`, `{}`, "a", "Claude did not confirm the reset"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newConfiguredApp(t)
+			claimed := ""
+			app.SetHostCaller(func(method string, payload any) (json.RawMessage, error) {
+				if method == hostAuthGet {
+					return json.RawMessage(`{"json":{"access_token":"dummy-upstream-token"}}`), nil
+				}
+				request := payload.(hostHTTPRequest)
+				body := map[string]string{
+					"https://api.anthropic.com/api/oauth/profile":                          `{"organization":{"uuid":"00112233-4455-6677-8899-AABBCCDDEEFF"}}`,
+					"https://api.anthropic.com/api/oauth/usage?cedar_ember=1&skip_spend=1": `{"cedar_ember":` + tc.status + `}`,
+				}[request.URL]
+				if request.Method == http.MethodPost {
+					var claim map[string]string
+					if request.URL != "https://api.anthropic.com/api/organizations/00112233-4455-6677-8899-aabbccddeeff/reset_rate_limits" ||
+						json.Unmarshal(request.Body, &claim) != nil || claim["program"] != "cedar_ember" || claim["request_id"] != resetID {
+						t.Fatalf("unexpected claim: %s %s", request.URL, request.Body)
+					}
+					claimed, body = claim["grant_id"], tc.result
+				}
+				return mustJSONRaw(t, hostHTTPResponse{StatusCode: http.StatusOK, Body: []byte(body)}), nil
+			})
+			got := ""
+			if err := app.resetClaudeQuota("", hostAuthFile{AuthIndex: "claude-1", Type: "claude"}, resetID); err != nil {
+				got = err.Error()
+			}
+			if claimed != tc.claimed || got != tc.want {
+				t.Fatalf("claimed = %q, err = %q", claimed, got)
+			}
+		})
+	}
+}
+
 func TestClaudeQuotaOmitsDisabledExtraUsage(t *testing.T) {
 	app := newConfiguredApp(t)
 	profileCalled := false
@@ -677,7 +720,7 @@ func TestAuthQuotaReset(t *testing.T) {
 			case "missing file":
 				req.Query.Set("auth_index", "missing")
 			case "unsupported provider":
-				file.Type = "claude"
+				file.Type = "xai"
 			case "disabled file":
 				file.Disabled = true
 			case "denied credential", "outside allowlist":
