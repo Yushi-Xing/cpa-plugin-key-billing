@@ -1574,6 +1574,14 @@ class Handler(BaseHTTPRequestHandler):
         route = self.command, parsed.path
         if route == ("POST", f"{API_BASE}/auth-files/quota/reset"):
             self.reset_auth_quota(parsed, AUTH_FILES)
+        elif route == ("PATCH", "/v0/management/auth-files/status"):
+            body = json.loads(request_body or b"{}")
+            item = next((item for item in AUTH_FILES if item["name"] == body.get("name")), None)
+            if item is None:
+                self.send_json(404, {"error": "auth file not found"})
+                return
+            item["disabled"] = bool(body.get("disabled"))
+            self.send_json(200, {"status": "ok", "disabled": item["disabled"]})
         elif route == ("DELETE", f"{API_BASE}/plugin-logs"):
             cleared = len(PLUGIN_LOGS)
             PLUGIN_LOGS.clear()

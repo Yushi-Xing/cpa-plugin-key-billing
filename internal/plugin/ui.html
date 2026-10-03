@@ -319,7 +319,7 @@
       }
       button {
         appearance: none;
-        min-height: 35px;
+        min-height: var(--button-min-height, 35px);
         font: inherit;
         font-weight: 400;
         line-height: 1.5;
@@ -639,7 +639,7 @@
       }
       :root[data-cpamp-plugin-host="true"] .toggle-filter.compact-toggle { border-color: transparent; background: transparent; }
       :root[data-cpamp-plugin-host="true"] button:not(.link, .icon-action, .routing-section-toggle, .routing-option) {
-        min-height: 34px;
+        min-height: var(--button-min-height, 34px);
         padding: 0 var(--button-padding-inline, 12px);
         border-color: var(--app-border, var(--border-color));
         border-radius: var(--app-radius-md, 12px);
@@ -1125,6 +1125,10 @@
       .switch-control > input:focus-visible + .switch-track { outline: 2px solid var(--primary-color); outline-offset: 2px; }
       .switch-control > input:disabled { cursor: not-allowed; }
       .switch-control > input:disabled + .switch-track { opacity: 0.5; }
+      .switch-button .switch-track { flex: none; width: 24px; height: 14px; }
+      .switch-button .switch-track::after { width: 10px; height: 10px; }
+      .switch-button[aria-checked="true"] .switch-track { background: var(--primary-color); }
+      .switch-button[aria-checked="true"] .switch-track::after { transform: translateX(10px); background: var(--primary-contrast); }
       .compact-toggle .switch-control { width: 24px; height: 14px; }
       .compact-toggle .switch-track::after { width: 10px; height: 10px; }
       .compact-toggle .switch-control > input:checked + .switch-track::after { transform: translateX(10px); }
@@ -1226,9 +1230,20 @@
       :root[data-theme="dark"] .auth-provider-icon[data-provider="xai"] {
         box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
       }
-      .auth-file-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 14px; }
-      .auth-file-footer button { min-height: 30px; padding: 3px 10px; font-size: 12px; }
-      .auth-file-footer .lucide-icon { width: 14px; height: 14px; transform-origin: center; }
+      /* Card actions are secondary controls, a size below the page toolbar. */
+      .auth-file-footer {
+        --button-min-height: 26px;
+        --button-padding-inline: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: auto;
+        padding-top: 14px;
+      }
+      .auth-file-footer button { gap: 5px; padding-block: 2px; font-size: 12px; }
+      .auth-file-footer .lucide-icon { width: 13px; height: 13px; transform-origin: center; }
       .auth-file-footer .loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon {
         animation: auth-refresh-spin 0.8s linear infinite;
       }
@@ -2513,7 +2528,7 @@
                   </select>
                 </span>
                 <input id="auth-search" type="search" placeholder="Search auth files" autocomplete="off"  data-i18n-placeholder="ui.search_auth_files"/>
-                <button id="auth-refresh-filtered" class="labeled-icon-button" type="button" data-i18n="ui.update_quotas">Refresh quotas</button>
+                <button id="auth-refresh-filtered" class="labeled-icon-button" type="button" data-i18n="ui.update_quotas">Refresh quota</button>
               </div>
             </div>
             <div id="auth-files-body"></div>
@@ -2681,7 +2696,7 @@
                     </select>
                   </span>
                   <input id="account-auth-search" type="search" placeholder="Search auth files" autocomplete="off"  data-i18n-placeholder="ui.search_auth_files"/>
-                  <button id="account-auth-refresh-filtered" class="labeled-icon-button" type="button" data-i18n="ui.update_quotas">Refresh quotas</button>
+                  <button id="account-auth-refresh-filtered" class="labeled-icon-button" type="button" data-i18n="ui.update_quotas">Refresh quota</button>
                 </div>
               </div>
               <div id="account-auth-files-body"></div>
@@ -2822,7 +2837,8 @@
       let loginMode = initialRoute.role;
       let loginModeRequest = 0;
       function emptyAuthQuotaState() { return { authQuotas: new Map(), authQuotaLoading: new Set(), authQuotaErrors: new Map() }; }
-      let adminUIState = { ...emptyAuthQuotaState(), keySubmissions: new Set() };
+      function emptyAdminUIState() { return { ...emptyAuthQuotaState(), keySubmissions: new Set(), authStatusSubmissions: new Set() }; }
+      let adminUIState = emptyAdminUIState();
       let accountUIState = emptyAuthQuotaState();
       const authQuotaGeneration = { admin: 0, account: 0 };
       const credentialScope = { admin: "", account: "" };
@@ -3473,7 +3489,7 @@
         if (role === "account") accountUIState = emptyAuthQuotaState();
         else {
           $("route-picker").close();
-          adminUIState = { ...emptyAuthQuotaState(), keySubmissions: new Set() };
+          adminUIState = emptyAdminUIState();
           expandedPluginLogIDs.clear();
           resourceGroups.admin.configuration.syncErrors = [];
           keyDirectory.clear();
@@ -5786,82 +5802,128 @@
         const files = filteredAuthFiles(account);
         const refreshable = files.filter((file) => file.quota_supported).length;
         ui.bulk.disabled = refreshable === 0 || ui.bulk.dataset.loading === "true";
-        renderCollection(ui.body, files, {
-          attrs: { class: "auth-file-grid" },
-          empty: m("ui.no_auth_files_match_the_filters"),
-          render: (file) => {
-            const statusText = file.disabled ? m("ui.disabled") : file.unavailable ? m("ui.unavailable") : m("ui.enabled");
-            const statusClass = file.disabled ? "plain" : file.unavailable ? "bad" : "ok";
-            const category = AUTH_CATEGORY_LABELS[file.category] || file.category || m("ui.unknown_2");
-            const quota = ui.owner.authQuotas.get(file.auth_index);
-            const seenMeta = new Set();
-            const meta = [category, quota?.plan].filter((value) => {
-              const key = String(value || "").trim().toLocaleLowerCase();
-              if (!key || seenMeta.has(key)) return false;
-              seenMeta.add(key);
-              return true;
-            });
-            const loading = ui.owner.authQuotaLoading.has(file.auth_index);
-            const resettable =
-              file.category === "codex" && (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
-              Number.isFinite(quota?.rate_limit_reset_credits_available_count);
-            const actions = [
-              resettable &&
-                el(
-                  "button",
-                  {
-                    type: "button",
-                    class: "labeled-icon-button",
-                    disabled: !canResetAuthQuota(file, account),
-                    onclick: () => guard(() => resetAuthQuota(file, account))
-                  },
-                  actionIcon("party-popper"),
-                  m("ui.reset_quota")
-                ),
+        // Redraw cards in place: a replacement card under the pointer would replay its hover lift.
+        const grid = ui.body.querySelector(":scope > .auth-file-grid");
+        const cards = new Map(Array.from(grid?.children || [], (card) => [card.dataset.authIndex, card]));
+        const renderCard = (file) => {
+          const statusText = file.disabled ? m("ui.disabled") : file.unavailable ? m("ui.unavailable") : m("ui.enabled");
+          const statusClass = file.disabled ? "plain" : file.unavailable ? "bad" : "ok";
+          const category = AUTH_CATEGORY_LABELS[file.category] || file.category || m("ui.unknown_2");
+          const quota = ui.owner.authQuotas.get(file.auth_index);
+          const seenMeta = new Set();
+          const meta = [category, quota?.plan].filter((value) => {
+            const key = String(value || "").trim().toLocaleLowerCase();
+            if (!key || seenMeta.has(key)) return false;
+            seenMeta.add(key);
+            return true;
+          });
+          const loading = ui.owner.authQuotaLoading.has(file.auth_index);
+          const resettable =
+            file.category === "codex" && (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
+            Number.isFinite(quota?.rate_limit_reset_credits_available_count);
+          const actions = [
+            resettable &&
               el(
                 "button",
                 {
                   type: "button",
-                  class: "labeled-icon-button" + (loading ? " loading" : ""),
-                  disabled: !file.quota_supported || loading || ui.bulk.dataset.loading === "true",
-                  title: file.quota_supported
-                    ? null
-                    : window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
-                      m("ui.quota_queries_are_not_supported_for_this_auth_file_type"),
-                  onclick: () => guard(() => refreshAuthQuota(file, account))
+                  class: "labeled-icon-button",
+                  disabled: !canResetAuthQuota(file, account),
+                  onclick: () => guard(() => resetAuthQuota(file, account))
                 },
-                actionIcon("refresh"),
-                m("ui.update_quotas")
+                actionIcon("party-popper"),
+                m("ui.reset_quota")
+              ),
+            el(
+              "button",
+              {
+                type: "button",
+                class: "labeled-icon-button" + (loading ? " loading" : ""),
+                disabled: !file.quota_supported || loading || ui.bulk.dataset.loading === "true",
+                title: file.quota_supported
+                  ? null
+                  : window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
+                    m("ui.quota_queries_are_not_supported_for_this_auth_file_type"),
+                onclick: () => guard(() => refreshAuthQuota(file, account))
+              },
+              actionIcon("refresh"),
+              m("ui.update_quotas")
+            ),
+            !account &&
+              el(
+                "button",
+                {
+                  type: "button",
+                  role: "switch",
+                  class: "labeled-icon-button switch-button",
+                  "aria-checked": String(!file.disabled),
+                  disabled: adminUIState.authStatusSubmissions.has(file.auth_index),
+                  onclick: () => guard(() => setAuthFileEnabled(file, file.disabled))
+                },
+                el("span", { class: "switch-track", "aria-hidden": "true" }),
+                m("ui.enable")
               )
-            ];
-            return el(
-              "article",
-              { class: "auth-file-card" },
+          ];
+          const card = cards.get(file.auth_index) || el("article", { class: "auth-file-card", "data-auth-index": file.auth_index });
+          card.replaceChildren(
+            el(
+              "div",
+              { class: "auth-file-head" },
               el(
                 "div",
-                { class: "auth-file-head" },
+                { class: "auth-file-main" },
+                authProviderIcon(file.category),
                 el(
                   "div",
-                  { class: "auth-file-main" },
-                  authProviderIcon(file.category),
-                  el(
-                    "div",
-                    { class: "auth-file-identity" },
-                    el("div", {
-                      class: "auth-file-email-title mask-blur",
-                      title: file.email || m("ui.no_email_provided"),
-                      text: file.email || m("ui.no_email_provided")
-                    }),
-                    el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
-                  )
-                ),
-                el("span", { class: "tag " + statusClass, text: statusText })
+                  { class: "auth-file-identity" },
+                  el("div", {
+                    class: "auth-file-email-title mask-blur",
+                    title: file.email || m("ui.no_email_provided"),
+                    text: file.email || m("ui.no_email_provided")
+                  }),
+                  el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
+                )
               ),
-              renderAuthFileQuota(file, account),
-              el("div", { class: "auth-file-footer" }, actions)
-            );
-          }
+              el("span", { class: "tag " + statusClass, text: statusText })
+            ),
+            renderAuthFileQuota(file, account),
+            el("div", { class: "auth-file-footer" }, actions)
+          );
+          return card;
+        };
+        if (grid && files.length) {
+          files.forEach((file, index) => {
+            const card = renderCard(file);
+            if (grid.children[index] !== card) grid.insertBefore(card, grid.children[index] || null);
+          });
+          while (grid.children.length > files.length) grid.lastElementChild.remove();
+          return;
+        }
+        renderCollection(ui.body, files, {
+          attrs: { class: "auth-file-grid" },
+          empty: m("ui.no_auth_files_match_the_filters"),
+          render: renderCard
         });
+      }
+
+      async function setAuthFileEnabled(file, enabled) {
+        const owner = adminUIState;
+        if (owner.authStatusSubmissions.has(file.auth_index)) return;
+        owner.authStatusSubmissions.add(file.auth_index);
+        file.disabled = !enabled;
+        renderAuthFiles(false);
+        try {
+          const body = { name: file.name, auth_index: file.auth_index, disabled: !enabled };
+          await api("PATCH", "/v0/management/auth-files/status", body, { raw: true });
+        } catch (error) {
+          file.disabled = enabled;
+          if (error instanceof AuthError || error instanceof StaleRequestError) throw error;
+          throw new UIError(m(enabled ? "ui.enable_auth_file_failed_value" : "ui.disable_auth_file_failed_value", { v0: error.message }));
+        } finally {
+          owner.authStatusSubmissions.delete(file.auth_index);
+          if (owner === adminUIState) renderAuthFiles(false);
+        }
+        await loadDataGroup(false, "authFiles", true);
       }
 
       const AUTH_QUOTA_TIMEOUT_MS = 65000;
