@@ -1118,8 +1118,14 @@ body.privacy-masked .mask-select:not(:has(option[value=""]:checked))::before {
   -webkit-backdrop-filter: blur(0.28em);
   pointer-events: none;
 }
-.auth-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: stretch; }
+.auth-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(280px, (100% - 36px) / 4), 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
 .auth-file-card {
+  container: auth-file / inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1199,6 +1205,10 @@ body.privacy-masked .mask-select:not(:has(option[value=""]:checked))::before {
 }
 .auth-file-footer button { gap: 5px; padding-block: 2px; font-size: 12px; }
 .auth-file-footer .lucide-icon { width: 13px; height: 13px; transform-origin: center; }
+@container auth-file (max-width: 330px) {
+  .auth-quota-refresh { --button-padding-inline: 0; width: var(--button-min-height); flex: none; }
+  .auth-quota-refresh > .labeled-icon-text { display: none; }
+}
 .auth-file-footer .loading .lucide-icon, [data-page-action="refresh"]:disabled .lucide-icon {
   animation: auth-refresh-spin 0.8s linear infinite;
 }

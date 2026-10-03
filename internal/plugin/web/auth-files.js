@@ -352,13 +352,14 @@ function renderAuthFiles(account) {
           "button",
           {
             type: "button",
-            class: "labeled-icon-button" + (loading ? " loading" : ""),
+            class: "labeled-icon-button auth-quota-refresh" + (loading ? " loading" : ""),
             disabled: !canRefreshAuthQuota(file) || loading || ui.bulk.dataset.loading === "true",
-            title: authQuotaRefreshTitle(file),
+            "aria-label": m("ui.update_quotas"),
+            title: authQuotaRefreshTitle(file) || m("ui.update_quotas"),
             onclick: () => guard(() => refreshAuthQuota(file, account))
           },
           actionIcon("refresh"),
-          m("ui.update_quotas")
+          el("span", { class: "labeled-icon-text" }, m("ui.update_quotas"))
         ),
       !account &&
         el(
