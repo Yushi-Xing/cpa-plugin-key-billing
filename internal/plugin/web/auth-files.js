@@ -100,6 +100,9 @@ async function fetchAuthFiles(account) {
 function updateAuthFiles(account, files) {
   const role = account ? "account" : "admin";
   const owner = account ? accountUIState : adminUIState;
+  // Status changes awaiting confirmation outlast reads that started before them.
+  for (const file of files)
+    if (owner.authStatusSubmissions?.has(file.auth_index)) file.disabled = owner.authStatusSubmissions.get(file.auth_index);
   const byIndex = new Map(files.map((file) => [file.auth_index, file]));
   const previous = new Map((resources[role].authFiles.value || []).map((file) => [file.auth_index, file.cache_revision || ""]));
   const changed = new Set(
@@ -420,21 +423,27 @@ function renderAuthFiles(account) {
 async function setAuthFileEnabled(file, enabled) {
   const owner = adminUIState;
   if (owner.authStatusSubmissions.has(file.auth_index)) return;
-  owner.authStatusSubmissions.add(file.auth_index);
+  owner.authStatusSubmissions.set(file.auth_index, !enabled);
   file.disabled = !enabled;
   renderAuthFiles(false);
   try {
     const body = { name: file.name, auth_index: file.auth_index, disabled: !enabled };
     await api("PATCH", "/v0/management/auth-files/status", body, { raw: true });
   } catch (error) {
+    owner.authStatusSubmissions.delete(file.auth_index);
     file.disabled = enabled;
+    if (owner === adminUIState) renderAuthFiles(false);
     if (error instanceof AuthError || error instanceof StaleRequestError) throw error;
     throw new UIError(m(enabled ? "ui.enable_auth_file_failed_value" : "ui.disable_auth_file_failed_value", { v0: error.message }));
+  }
+  try {
+    // A list read already in flight started before this change, so only the next read confirms it.
+    await resourceGroups.admin.authFiles.task?.catch(() => {});
+    await loadDataGroup(false, "authFiles", true);
   } finally {
     owner.authStatusSubmissions.delete(file.auth_index);
     if (owner === adminUIState) renderAuthFiles(false);
   }
-  await loadDataGroup(false, "authFiles", true);
 }
 
 const AUTH_QUOTA_TIMEOUT_MS = 65000;

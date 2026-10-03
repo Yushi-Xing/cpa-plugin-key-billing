@@ -63,7 +63,7 @@ const activeRequests = new Set();
 let loginMode = initialRoute.role;
 let loginModeRequest = 0;
 function emptyAuthQuotaState() { return { authQuotas: new Map(), authQuotaLoading: new Set(), authQuotaErrors: new Map() }; }
-function emptyAdminUIState() { return { ...emptyAuthQuotaState(), keySubmissions: new Set(), authStatusSubmissions: new Set() }; }
+function emptyAdminUIState() { return { ...emptyAuthQuotaState(), keySubmissions: new Set(), authStatusSubmissions: new Map() }; }
 let adminUIState = emptyAdminUIState();
 let accountUIState = emptyAuthQuotaState();
 const authQuotaGeneration = { admin: 0, account: 0 };
