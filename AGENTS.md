@@ -11,7 +11,8 @@ Source paths are relative to this repository's root:
 ## Required Checks
 
 - **Before committing:** Run `gofmt -l .`; format any listed files and rerun until the output is empty.
-- **Frontend changes:** Start `python3 scripts/frontend_dummy_backend.py --port 18765` (not the default port) and verify affected desktop and narrow-screen layouts with Playwright, beyond static checks.
+- **Go changes:** Run `go vet ./...` and `go test -race ./...`.
+- **Frontend changes:** Start `python3 scripts/frontend_dummy_backend.py` on a port other than the default 8765, such as `--port 18765`, and verify affected desktop and narrow-screen layouts with Playwright, beyond static checks. Add `--host cpamc` or `--host cpamp` to check host-specific styles inside those shells.
 - **Frontend regression scripts:** Store JavaScript scripts used with `playwright-cli` for browser regression testing in a temporary directory, never in the project's `scripts/` directory.
 - **Billing changes:** Run `scripts/e2e_cpa_billing.sh v7.2.143` after modifying any billing behavior, including usage parsing, pricing, quota enforcement, or failure reporting.
 
@@ -63,3 +64,17 @@ Source paths are relative to this repository's root:
 - Keep each commit focused on one logical change.
 - Omit the body only for simple, narrowly scoped changes fully explained by the subject. Otherwise, add a blank line and a body explaining motivation, important implementation details, and behavioral impact; wrap at approximately 72 columns.
 - Describe the final change, not the development process or implementation history.
+
+## Local Build and Private Configuration
+
+- Release builds follow `.github/workflows/release.yml`. Locally, `scripts/deploy.sh` cross-builds the Linux/amd64 CGO library with Zig's C compiler (`brew install zig` on macOS) against the same glibc 2.17 baseline. Keep artifacts in ignored `dist/`, and set cross-compilation variables per command rather than globally.
+- Private deployment values live in ignored `.env`, created from the placeholder `.env.example` and kept at mode `600`. Never expose credentials or private deployment values in logs, screenshots, commits, uploads, or reports.
+- `CPA_SSH_HOST` selects the deployment SSH host. `CPA_REMOTE_PLUGIN_DIR` (inside a `plugins/` directory) and `CPA_REMOTE_COMPOSE_FILE` are resolved on the server relative to the SSH user's home. `CPA_BASE_URL` and `CPA_MANAGEMENT_PASSWORD` provide the verification origin and management login.
+
+## Deployment and End-to-End Verification
+
+After plugin code, UI, build, or installation changes, complete these steps without routine reconfirmation; documentation and local setup changes are exempt.
+
+1. Before deploying a new `Version`, update this plugin's CPA `store.version` and `store.release-tag` pins when present; the loader skips files that do not match them. Run `scripts/deploy.sh`: it builds and uploads the library with a checksum check, moves existing `cpa-key-billing-v*.so` files to `plugin-backups/` beside the remote `plugins/` directory, installs `cpa-key-billing-v<Version>.so`, restarts only the `cli-proxy-api` Compose service, and fails unless the management API reports that exact file registered and enabled. Plugin configuration, billing state, and history are preserved. Inspect the server by hand only when the script fails or the deployment layout changes.
+2. Open the deployed plugin UI under `CPA_BASE_URL` and sign in with the management password. Verify the changed flow and its authenticated API calls, including desktop and narrow layouts for UI changes, and check existing billing views and history after a refresh. Do not generate billable upstream requests or change real keys, quotas, plans, routes, or credential state for a smoke test; billing behavior changes still require the local end-to-end check above.
+3. If deployment breaks CPA or the plugin, restore the backup printed by the script under its original name, remove the new file, and restart through the same Compose file. Report checks, artifact version and checksum, and verification results, naming any blockers and incomplete checks.
