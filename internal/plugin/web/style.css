@@ -600,7 +600,7 @@ body.embedded .tab-refresh { display: grid; }
   background: var(--app-input-bg, var(--app-surface-strong));
 }
 :root[data-cpamp-plugin-host="true"] .toggle-filter.compact-toggle { border-color: transparent; background: transparent; }
-:root[data-cpamp-plugin-host="true"] button:not(.link, .icon-action, .routing-section-toggle, .routing-option) {
+:root[data-cpamp-plugin-host="true"] button:not(.link, .icon-action, .routing-section-toggle, .routing-option, .auth-quota-idle) {
   min-height: var(--button-min-height, 34px);
   padding: 0 var(--button-padding-inline, 12px);
   border-color: var(--app-border, var(--border-color));
@@ -608,7 +608,8 @@ body.embedded .tab-refresh { display: grid; }
   background: var(--app-surface-muted, var(--bg-tertiary));
   line-height: 1.2;
 }
-:root[data-cpamp-plugin-host="true"] button:not(.link):not(.routing-section-toggle):not(.routing-option):hover:not(:disabled) {
+:root[data-cpamp-plugin-host="true"]
+  button:not(.link):not(.routing-section-toggle):not(.routing-option):not(.auth-quota-idle):hover:not(:disabled) {
   border-color: var(--border-hover);
   background: var(--app-accent-soft, var(--bg-hover));
   color: var(--primary-color);
@@ -1258,6 +1259,32 @@ body.privacy-masked .mask-select:not(:has(option[value=""]:checked))::before {
   color: var(--failure-badge-text);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+.auth-file-quota.idle { padding-top: 0; border-top: none; }
+.auth-quota-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 10px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+.auth-quota-idle .lucide-icon { width: 15px; height: 15px; opacity: 0.8; }
+@media (hover: hover) {
+  .auth-quota-idle:hover:not(:disabled) {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+    background: none;
+    color: var(--text-secondary);
+  }
 }
 dialog, .time-range-popover { max-height: 80dvh; }
 dialog {

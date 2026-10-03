@@ -237,6 +237,7 @@
   "ui.used_value": "已用 {v0}",
   "ui.quota_value": "额度 {v0}",
   "ui.updating_quotas": "正在刷新额度…",
+  "ui.click_here_to_refresh_quota": "点击此处刷新额度",
   "ui.credits_value": "Credits：{v0}",
   "ui.available_resets_value": "主动重置次数：{v0}",
   "ui.enable": "启用",

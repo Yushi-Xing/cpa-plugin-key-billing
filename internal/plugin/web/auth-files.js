@@ -236,6 +236,26 @@ function renderAuthResetCredits(file, result) {
   );
 }
 
+function canRefreshAuthQuota(file) { return file.quota_supported && !file.disabled; }
+
+// Without stored quota, the card body offers the refresh, as CPAMC does. The backend reports disabled
+// files as unsupported; their prompt stays visible but disabled.
+function authQuotaIdle(file, owner) {
+  const index = file.auth_index;
+  return (
+    (file.quota_supported || file.disabled) && !owner.authQuotaLoading.has(index) && !owner.authQuotaErrors.get(index) &&
+    !owner.authQuotas.get(index)
+  );
+}
+
+function authQuotaRefreshTitle(file) {
+  if (file.quota_supported) return null;
+  return (
+    window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
+    m("ui.quota_queries_are_not_supported_for_this_auth_file_type")
+  );
+}
+
 function renderAuthFileQuota(file, account) {
   const owner = account ? accountUIState : adminUIState;
   const index = file.auth_index;
@@ -244,6 +264,24 @@ function renderAuthFileQuota(file, account) {
   }
   const error = owner.authQuotaErrors.get(index);
   if (error) return el("div", { class: "auth-file-quota" }, el("div", { class: "auth-quota-error", text: error }));
+  if (authQuotaIdle(file, owner)) {
+    return el(
+      "div",
+      { class: "auth-file-quota idle" },
+      el(
+        "button",
+        {
+          type: "button",
+          class: "auth-quota-idle",
+          disabled: !canRefreshAuthQuota(file) || authUI(account).bulk.dataset.loading === "true",
+          title: authQuotaRefreshTitle(file),
+          onclick: () => guard(() => refreshAuthQuota(file, account))
+        },
+        actionIcon("refresh"),
+        el("span", { text: m("ui.click_here_to_refresh_quota") })
+      )
+    );
+  }
   const result = owner.authQuotas.get(index);
   if (!result) return null;
   const summary = [];
@@ -272,7 +310,7 @@ function renderAuthFiles(account) {
     return;
   }
   const files = filteredAuthFiles(account);
-  const refreshable = files.filter((file) => file.quota_supported).length;
+  const refreshable = files.filter(canRefreshAuthQuota).length;
   ui.bulk.disabled = refreshable === 0 || ui.bulk.dataset.loading === "true";
   // Redraw cards in place: a replacement card under the pointer would replay its hover lift.
   const grid = ui.body.querySelector(":scope > .auth-file-grid");
@@ -306,21 +344,19 @@ function renderAuthFiles(account) {
           actionIcon("party-popper"),
           m("ui.reset_quota")
         ),
-      el(
-        "button",
-        {
-          type: "button",
-          class: "labeled-icon-button" + (loading ? " loading" : ""),
-          disabled: !file.quota_supported || loading || ui.bulk.dataset.loading === "true",
-          title: file.quota_supported
-            ? null
-            : window.billingI18n.serverMessage(file.quota_unavailable_message, file.quota_unavailable_reason) ||
-              m("ui.quota_queries_are_not_supported_for_this_auth_file_type"),
-          onclick: () => guard(() => refreshAuthQuota(file, account))
-        },
-        actionIcon("refresh"),
-        m("ui.update_quotas")
-      ),
+      !authQuotaIdle(file, ui.owner) &&
+        el(
+          "button",
+          {
+            type: "button",
+            class: "labeled-icon-button" + (loading ? " loading" : ""),
+            disabled: !canRefreshAuthQuota(file) || loading || ui.bulk.dataset.loading === "true",
+            title: authQuotaRefreshTitle(file),
+            onclick: () => guard(() => refreshAuthQuota(file, account))
+          },
+          actionIcon("refresh"),
+          m("ui.update_quotas")
+        ),
       !account &&
         el(
           "button",
@@ -337,29 +373,32 @@ function renderAuthFiles(account) {
         )
     ];
     const card = cards.get(file.auth_index) || el("article", { class: "auth-file-card", "data-auth-index": file.auth_index });
+    // DOM replaceChildren renders null as text, unlike el().
     card.replaceChildren(
-      el(
-        "div",
-        { class: "auth-file-head" },
+      ...[
         el(
           "div",
-          { class: "auth-file-main" },
-          authProviderIcon(file.category),
+          { class: "auth-file-head" },
           el(
             "div",
-            { class: "auth-file-identity" },
-            el("div", {
-              class: "auth-file-email-title mask-blur",
-              title: file.email || m("ui.no_email_provided"),
-              text: file.email || m("ui.no_email_provided")
-            }),
-            el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
-          )
+            { class: "auth-file-main" },
+            authProviderIcon(file.category),
+            el(
+              "div",
+              { class: "auth-file-identity" },
+              el("div", {
+                class: "auth-file-email-title mask-blur",
+                title: file.email || m("ui.no_email_provided"),
+                text: file.email || m("ui.no_email_provided")
+              }),
+              el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
+            )
+          ),
+          el("span", { class: "tag " + statusClass, text: statusText })
         ),
-        el("span", { class: "tag " + statusClass, text: statusText })
-      ),
-      renderAuthFileQuota(file, account),
-      el("div", { class: "auth-file-footer" }, actions)
+        renderAuthFileQuota(file, account),
+        el("div", { class: "auth-file-footer" }, actions)
+      ].filter(Boolean)
     );
     return card;
   };
@@ -494,6 +533,7 @@ async function loadAuthQuota(file, account) {
 }
 
 async function refreshAuthQuota(file, account) {
+  if (!canRefreshAuthQuota(file)) return;
   const role = account ? "account" : "admin";
   const generation = authQuotaGeneration[role];
   const task = loadAuthQuota(file, account);
@@ -510,7 +550,7 @@ async function refreshFilteredAuthQuotas(account) {
   const ui = authUI(account);
   const role = account ? "account" : "admin";
   const generation = authQuotaGeneration[role];
-  const files = filteredAuthFiles(account).filter((file) => file.quota_supported && !ui.owner.authQuotaLoading.has(file.auth_index));
+  const files = filteredAuthFiles(account).filter((file) => canRefreshAuthQuota(file) && !ui.owner.authQuotaLoading.has(file.auth_index));
   if (!files.length || ui.bulk.dataset.loading === "true") return;
   ui.bulk.dataset.loading = "true";
   const progress = el("span", { text: m("ui.updating_0_value", { v0: files.length }) });

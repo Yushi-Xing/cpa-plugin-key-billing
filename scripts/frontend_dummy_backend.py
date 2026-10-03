@@ -438,6 +438,13 @@ AUTH_FILES.sort(
 )
 
 
+def auth_file_views(files):
+    # Mirrors authQuotaAvailability in internal/plugin/auth_files.go.
+    return [{**item, "quota_supported": False, "quota_unavailable_reason": "Auth file is disabled",
+             "quota_unavailable_message": {"message_key": "backend.auth_file_is_disabled"}}
+            if item["disabled"] else item for item in files]
+
+
 def quota_row(label, remaining_percent, reset_seconds, **extra):
     return {
         "label": label,
@@ -1359,7 +1366,7 @@ def payload_for(path, query):
         return {"entries": entries[:limit], "level_counts": counts,
                 "next_before_id": entries[limit - 1]["id"] if len(entries) > limit else 0}
     if path == f"{API_BASE}/auth-files":
-        return {"files": AUTH_FILES}
+        return {"files": auth_file_views(AUTH_FILES)}
     if path == f"{API_BASE}/auth-files/quota":
         return auth_file_quota(query)
     if path == f"{API_BASE}/prices/reference":
@@ -1508,7 +1515,7 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path.endswith("/errors"):
                 self.send_json(200, error_view(parse_qs(parsed.query), LIVE_KEYS[index]["scope"]))
             elif parsed.path.endswith("/auth-files"):
-                self.send_json(200, {"files": account_auth_files(index)})
+                self.send_json(200, {"files": auth_file_views(account_auth_files(index))})
             elif parsed.path.endswith("/auth-files/quota"):
                 query = parse_qs(parsed.query)
                 allowed = {
