@@ -253,7 +253,6 @@
   "ui.no_auth_files_match_the_filters": "没有符合筛选条件的认证文件",
   "ui.disabled": "已停用",
   "ui.unavailable": "不可用",
-  "ui.enabled": "已启用",
   "ui.quota_queries_are_not_supported_for_this_auth_file_type": "该认证文件类型暂不支持额度查询",
   "ui.no_email_provided": "未提供邮箱",
   "ui.available_resets_value_use_one_reset_now": "重置「{v1}」的额度？\n将使用 1 次主动重置（当前可用 {v0} 次），影响共用此认证文件的用户，不影响 API Key 订阅额度。",

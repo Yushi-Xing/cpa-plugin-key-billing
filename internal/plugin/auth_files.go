@@ -39,6 +39,7 @@ type hostAuthFile struct {
 	Account     string    `json:"account"`
 	Disabled    bool      `json:"disabled"`
 	Unavailable bool      `json:"unavailable"`
+	Priority    int       `json:"priority"`
 	Email       string    `json:"email"`
 	ProjectID   string    `json:"project_id"`
 	AccountType string    `json:"account_type"`
@@ -53,6 +54,7 @@ type authFileView struct {
 	Email              string           `json:"email,omitempty"`
 	Disabled           bool             `json:"disabled"`
 	Unavailable        bool             `json:"unavailable"`
+	Priority           int              `json:"priority"`
 	QuotaSupported     bool             `json:"quota_supported"`
 	QuotaReason        string           `json:"quota_unavailable_reason,omitempty"`
 	QuotaReasonMessage messages.Message `json:"quota_unavailable_message,omitzero"`
@@ -248,7 +250,7 @@ func (a *App) listAuthFiles(access viewAccess) ([]authFileView, error) {
 		quotaSupported, quotaReason := authQuotaAvailability(file, category)
 		views = append(views, authFileView{
 			AuthIndex: file.AuthIndex, Name: file.Name, Category: category, Email: cleanText(file.Email),
-			Disabled: file.Disabled, Unavailable: file.Unavailable,
+			Disabled: file.Disabled, Unavailable: file.Unavailable, Priority: file.Priority,
 			QuotaSupported: quotaSupported, QuotaReason: quotaReason, CacheRevision: authFileRevision(file),
 			QuotaReasonMessage: messages.Literal(quotaReason),
 		})

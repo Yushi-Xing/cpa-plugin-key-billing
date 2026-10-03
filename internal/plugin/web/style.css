@@ -26,9 +26,18 @@
   --failure-badge-border: #c6574659;
   --count-badge-bg: color-mix(in srgb, var(--primary-color) 14%, transparent);
   --count-badge-text: var(--primary-active);
+  --count-badge-border: transparent;
   --info-badge-bg: var(--count-badge-bg);
   --info-badge-text: var(--count-badge-text);
   --info-badge-border: transparent;
+  --premium-badge-bg:
+    radial-gradient(circle at 18% 24%, rgb(255 255 255 / 0.96), transparent 42%), linear-gradient(135deg, #fff9e3, #ffe07f 52%, #e0aa14);
+  --premium-badge-text: #6b4b00;
+  --premium-badge-border: rgb(217 165 22 / 0.72);
+  --premium-badge-glow: 0 1px 3px rgb(133 92 0 / 0.16), 0 0 10px rgb(255 214 98 / 0.28);
+  --business-badge-bg: #f2edfc;
+  --business-badge-text: #6b46c1;
+  --business-badge-border: #dcd0f5;
   --amber-color: #d97706;
   --amber-text: #92400e;
   --amber-10: color-mix(in srgb, var(--amber-color) 10%, transparent);
@@ -93,6 +102,14 @@
   --failure-badge-bg: #c657463d;
   --failure-badge-text: #f1b0a6;
   --failure-badge-border: #c6574680;
+  --premium-badge-bg:
+    radial-gradient(circle at 18% 24%, rgb(255 229 138 / 0.32), transparent 44%), linear-gradient(135deg, #4f3d0b, #6e5510 48%, #8f6d10);
+  --premium-badge-text: #fff0a8;
+  --premium-badge-border: rgb(226 180 50 / 0.7);
+  --premium-badge-glow: 0 1px 6px rgb(0 0 0 / 0.28), 0 0 12px rgb(255 196 44 / 0.22);
+  --business-badge-bg: #251e3a;
+  --business-badge-text: #c4b0f5;
+  --business-badge-border: #45386b;
   --amber-color: #f59e0b;
   --amber-text: #fcd34d;
   --amber-10: color-mix(in srgb, var(--amber-color) 14%, transparent);
@@ -182,6 +199,7 @@
   --data-badge-info-border: rgb(96 165 250 / 0.24);
   --data-badge-neutral-bg: rgb(148 163 184 / 0.12);
   --data-badge-neutral-text: #94a3b8;
+  --data-badge-neutral-border: rgb(148 163 184 / 0.2);
 }
 :root[data-cpamp-plugin-host="true"] {
   /* Resolve plugin components from CPAMP's injected semantic tokens. */
@@ -210,6 +228,7 @@
   --failure-badge-border: var(--data-badge-danger-border, #fecaca);
   --count-badge-bg: var(--data-badge-neutral-bg, #f8fafc);
   --count-badge-text: var(--data-badge-neutral-text, #475569);
+  --count-badge-border: var(--data-badge-neutral-border, #cbd5e1);
   --info-badge-bg: var(--data-badge-info-bg, #eff6ff);
   --info-badge-text: var(--data-badge-info-text, #2563eb);
   --info-badge-border: var(--data-badge-info-border, #bfdbfe);
@@ -473,7 +492,23 @@ tbody tr:hover { background: var(--bg-hover); }
 .tag.warn { background: var(--amber-10); color: var(--amber-text); border-color: var(--amber-30); }
 .tag.bad { background: var(--failure-badge-bg); color: var(--failure-badge-text); border-color: var(--failure-badge-border); }
 .tag.info { background: var(--info-badge-bg); color: var(--info-badge-text); border-color: var(--info-badge-border); }
-.tag.plain { background: var(--count-badge-bg); color: var(--count-badge-text); }
+.tag.plain { background: var(--count-badge-bg); color: var(--count-badge-text); border-color: var(--count-badge-border); }
+.tag.business { background: var(--business-badge-bg); color: var(--business-badge-text); border-color: var(--business-badge-border); }
+.tag.premium {
+  background: var(--premium-badge-bg);
+  color: var(--premium-badge-text);
+  border-color: var(--premium-badge-border);
+  box-shadow: var(--premium-badge-glow);
+}
+.tag.elite {
+  color: #1f2a38;
+  background:
+    linear-gradient(#fff, #e3eaf1 26%, #b4c0cd 45%, #8d9aab 54%, #c9d2dc 78%, #f2f6fa) padding-box,
+    linear-gradient(135deg, #fff, rgb(140 158 178 / 0.6) 42%, rgb(56 66 80 / 0.95)) border-box;
+  box-shadow: 0 1px 3px rgb(30 42 58 / 0.28), inset 0 1px 1px rgb(255 255 255 / 0.9), 0 0 10px rgb(150 180 220 / 0.36);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.65);
+}
+.tag.elite, .tag.premium { font-weight: 700; }
 .tag.icon { padding: 2px 5px; }
 /* CPAMP paints <html> in plugin frames, so the backdrop lives there and the blobs layer above it. */
 :root[data-cpamp-plugin-host="true"] { background: var(--app-bg-gradient, none) fixed var(--app-bg, #eff2f7); }
@@ -756,6 +791,16 @@ button.key-copy-button.copied, button.key-copy-button.copied:hover { color: var(
 .gate-submit { width: 100%; min-height: 42px; margin-top: 4px; font-size: 14px; font-weight: 600; }
 .app-header { justify-content: space-between; padding-right: 0; }
 .app-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.app-title h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+}
+.app-title .lucide-icon { width: 26px; height: 26px; color: var(--primary-color); }
 .standalone-actions {
   display: inline-flex;
   align-items: center;
@@ -788,16 +833,6 @@ button.key-copy-button.copied, button.key-copy-button.copied:hover { color: var(
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   color: var(--text-primary);
 }
-.app-title h1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 22px;
-  font-weight: 650;
-  line-height: 1.55;
-  letter-spacing: -0.01em;
-}
-.app-title .lucide-icon { width: 26px; height: 26px; color: var(--primary-color); }
 .standalone-actions .icon-action:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 26%, transparent);
@@ -1095,23 +1130,14 @@ body.privacy-masked .mask-select:not(:has(option[value=""]:checked))::before {
     box-shadow: 0 7px 18px color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 }
-.auth-file-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.auth-file-head > .tag { flex: none; margin-top: 2px; }
-.auth-file-main { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
+.auth-file-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.auth-file-card.disabled > :not(.auth-file-footer) { opacity: 0.68; }
 .auth-file-identity { min-width: 0; flex: 1; }
 .auth-file-email-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.auth-file-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  overflow: hidden;
-  margin-top: 4px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.auth-file-meta > span { flex: none; }
+.auth-file-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0; margin-top: 5px; }
+.auth-file-meta > .tag { gap: 4px; min-width: 0; max-width: 100%; }
+.auth-file-meta .tag > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.auth-file-meta .lucide-icon { width: 12px; height: 12px; }
 .auth-provider-icon {
   display: inline-flex;
   align-items: center;
@@ -1157,6 +1183,7 @@ body.privacy-masked .mask-select:not(:has(option[value=""]:checked))::before {
 .auth-file-footer button { gap: 5px; padding-block: 2px; font-size: 12px; }
 .auth-file-footer .lucide-icon { width: 13px; height: 13px; transform-origin: center; }
 @container auth-file (max-width: 330px) {
+  .auth-file-footer { --button-padding-inline: 6px; }
   .auth-quota-refresh { --button-padding-inline: 0; width: var(--button-min-height); flex: none; }
   .auth-quota-refresh > .labeled-icon-text { display: none; }
 }

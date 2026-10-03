@@ -367,6 +367,7 @@ AUTH_FILES = [
         "email": "dev-team@example.com",
         "disabled": False,
         "unavailable": False,
+        "priority": 10,
         "quota_supported": True,
     },
     {
@@ -376,6 +377,7 @@ AUTH_FILES = [
         "email": "platform@example.com",
         "disabled": False,
         "unavailable": False,
+        "priority": 0,
         "quota_supported": True,
     },
     {
@@ -385,6 +387,7 @@ AUTH_FILES = [
         "email": "automation@example.com",
         "disabled": False,
         "unavailable": False,
+        "priority": 99,
         "quota_supported": True,
     },
     {
@@ -394,6 +397,7 @@ AUTH_FILES = [
         "email": "ai-lab@example.com",
         "disabled": False,
         "unavailable": False,
+        "priority": 5,
         "quota_supported": True,
     },
     {
@@ -403,6 +407,7 @@ AUTH_FILES = [
         "email": "research@example.com",
         "disabled": False,
         "unavailable": True,
+        "priority": 0,
         "quota_supported": True,
     },
     {
@@ -412,6 +417,7 @@ AUTH_FILES = [
         "email": "research@example.com",
         "disabled": False,
         "unavailable": False,
+        "priority": 1,
         "quota_supported": True,
     },
 ]

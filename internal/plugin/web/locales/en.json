@@ -253,7 +253,6 @@
   "ui.no_auth_files_match_the_filters": "No auth files match the filters",
   "ui.disabled": "Disabled",
   "ui.unavailable": "Unavailable",
-  "ui.enabled": "Enabled",
   "ui.quota_queries_are_not_supported_for_this_auth_file_type": "Quota queries are not supported for this auth file type",
   "ui.no_email_provided": "No email provided",
   "ui.available_resets_value_use_one_reset_now": "Reset the quota for “{v1}”?\nUses 1 of {v0} available resets and affects everyone using this auth file. API key subscription quotas are unchanged.",

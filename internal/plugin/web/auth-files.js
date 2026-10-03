@@ -1,5 +1,38 @@
 const AUTH_CATEGORY_LABELS = { claude: "Claude", antigravity: "Antigravity", codex: "Codex", xai: "xAI", kimi: "Kimi" };
 
+// Tag tones for the plan labels the backend reports, per provider: a Claude Pro is not a Codex Pro 200.
+// Antigravity reports its upstream tier name as is.
+const AUTH_PLAN_TONES = {
+  codex: {
+    elite: ["pro500", "pro200"],
+    premium: ["pro100", "businesspremium"],
+    info: ["plus"],
+    ok: ["go"],
+    business: ["business", "enterprise", "enterpriseautomation"]
+  },
+  claude: { premium: ["max"], info: ["pro"], business: ["team"] },
+  antigravity: { elite: ["ultra", "googleaiultra"], premium: ["ultralite", "googleaiultralite"], info: ["pro", "googleaipro"] },
+  xai: { premium: ["paid"] }
+};
+
+function authPlanTone(category, plan) {
+  const key = plan.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return Object.entries(AUTH_PLAN_TONES[category] || {}).find(([, plans]) => plans.includes(key))?.[0] || "plain";
+}
+
+function authFileMeta(file, quota) {
+  const category = AUTH_CATEGORY_LABELS[file.category] || file.category || m("ui.unknown_2");
+  const plan = quota?.plan?.trim();
+  return el(
+    "div",
+    { class: "auth-file-meta" },
+    el("span", { class: "tag plain", title: category }, actionIcon("file-key"), el("span", { text: category })),
+    plan && el("span", { class: "tag " + authPlanTone(file.category, plan), title: plan }, el("span", { text: plan })),
+    el("span", { class: "tag plain", text: "P" + file.priority }),
+    file.unavailable && el("span", { class: "tag bad", text: m("ui.unavailable") })
+  );
+}
+
 const AUTH_PROVIDER_ICONS = {
   claude: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z"/></svg>`,
   antigravity: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 59" aria-hidden="true"><path fill="#3789F9" transform="translate(28,0)" d="M0 0h8l6 4 5 10 8 26 5 10 4 4-1 5h-5l-8-7-11-17-5-2-7 1-5 5-8 13-8 7h-6l1-6 5-6 5-13 7-22 5-9z"/><path fill="#6D80D8" transform="translate(28,0)" d="M0 0h8l6 4 5 10 6 21-4-1-5-5-5-3-4-6v-2l-5-2-5-1-5 3-4 1 3-10 5-7z"/><path fill="#D78240" transform="translate(28,0)" d="M0 0h8l6 4 5 10 1 5-7-4-3-3-7-2-4-2-6-1 3-5z"/><path fill="#3294CC" transform="translate(25,14)" d="M0 0l5 1 5 3 2 5-11-1-6 5-5 8-3 5h-3l7-21 5-3z"/><path fill="#E45C49" transform="translate(36,1)" d="M0 0l5 2 5 8 2 8-7-4-4-4-1-6-3-1 3-1z"/><path fill="#90AE64" transform="translate(21,7)" d="M0 0l9 1 3 2v2l-5 1-3 2-5 3-4 1 3-10z"/><path fill="#53A89A" transform="translate(25,14)" d="M0 0l5 1v3l-7 3-5 4-4-1 2-5 5-3z"/><path fill="#B5677D" transform="translate(33,11)" d="M0 0h5l11 9 1 4-5-1-4-3V7L4 5 0 2z"/><path fill="#778998" transform="translate(27,12)" d="M0 0h6l8 6 5 5 4 1-1 3-7-3-5-4V6L4 5z"/><path fill="#3390DF" transform="translate(26,21)" d="M0 0l4 2-15 15-1-3 7-10z"/><path fill="#3FA1B7" transform="translate(27,18)" d="M0 0l2 1-6 4-5 4-4 4-1-3 1-3 7-3 3-3z"/><path fill="#8277BB" transform="translate(37,18)" d="M0 0h4l5 5 4 1-1 3-7-3-5-4z"/><path fill="#4989CF" transform="translate(30,17)" d="M0 0l5 1 2 5-9-1z"/><path fill="#71B774" transform="translate(23,12)" d="M0 0l5 1-3 2-5 3-4 1 1-4z"/><path fill="#6687E9" transform="translate(44,28)" d="M0 0l7 1 2 6-4-1-5-5z"/><path fill="#C7AF38" transform="translate(23,3)" d="M0 0h7l-2 1v2l3 1-4 1-6-1z"/><path fill="#EF842A" transform="translate(28,0)" d="M0 0h8v3L4 4l-8-1z"/><path fill="#F35241" transform="translate(36,1)" d="M0 0l5 2 4 6-1 3-6-8-2-1z"/></svg>`,
@@ -319,17 +352,7 @@ function renderAuthFiles(account) {
   const grid = ui.body.querySelector(":scope > .auth-file-grid");
   const cards = new Map(Array.from(grid?.children || [], (card) => [card.dataset.authIndex, card]));
   const renderCard = (file) => {
-    const statusText = file.disabled ? m("ui.disabled") : file.unavailable ? m("ui.unavailable") : m("ui.enabled");
-    const statusClass = file.disabled ? "plain" : file.unavailable ? "bad" : "ok";
-    const category = AUTH_CATEGORY_LABELS[file.category] || file.category || m("ui.unknown_2");
     const quota = ui.owner.authQuotas.get(file.auth_index);
-    const seenMeta = new Set();
-    const meta = [category, quota?.plan].filter((value) => {
-      const key = String(value || "").trim().toLocaleLowerCase();
-      if (!key || seenMeta.has(key)) return false;
-      seenMeta.add(key);
-      return true;
-    });
     const loading = ui.owner.authQuotaLoading.has(file.auth_index);
     const resettable =
       (!account || resources.account.profile.value?.can_reset_auth_quota === true) &&
@@ -377,28 +400,24 @@ function renderAuthFiles(account) {
         )
     ];
     const card = cards.get(file.auth_index) || el("article", { class: "auth-file-card", "data-auth-index": file.auth_index });
+    card.classList.toggle("disabled", file.disabled);
     // DOM replaceChildren renders null as text, unlike el().
     card.replaceChildren(
       ...[
         el(
           "div",
           { class: "auth-file-head" },
+          authProviderIcon(file.category),
           el(
             "div",
-            { class: "auth-file-main" },
-            authProviderIcon(file.category),
-            el(
-              "div",
-              { class: "auth-file-identity" },
-              el("div", {
-                class: "auth-file-email-title mask-blur",
-                title: file.email || m("ui.no_email_provided"),
-                text: file.email || m("ui.no_email_provided")
-              }),
-              el("div", { class: "auth-file-meta" }, meta.map((value) => el("span", { title: value, text: value })))
-            )
-          ),
-          el("span", { class: "tag " + statusClass, text: statusText })
+            { class: "auth-file-identity" },
+            el("div", {
+              class: "auth-file-email-title mask-blur",
+              title: file.email || m("ui.no_email_provided"),
+              text: file.email || m("ui.no_email_provided")
+            }),
+            authFileMeta(file, quota)
+          )
         ),
         renderAuthFileQuota(file, account),
         el("div", { class: "auth-file-footer" }, actions)
