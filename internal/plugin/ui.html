@@ -3030,6 +3030,7 @@
 
       const analysisQueries = Object.fromEntries(["admin", "account"].map((role) => [role, createQuery(m("ui.analysis"))]));
       const eventKeysQuery = createQuery(m("ui.event_api_key_filter"));
+      const UNASSIGNED_KEY = "__unassigned__";
 
       const PAGED_LIST_VIEWS = {
         events: {
@@ -3062,11 +3063,15 @@
         }
       };
 
+      function apiKeyFilter(account) {
+        const key = account ? "" : $("analysis-key").value;
+        if (!key) return {};
+        return key === UNASSIGNED_KEY ? { api_key_empty: "true" } : { api_key: key };
+      }
+
       function requestEventFilters(account) {
         const prefix = account ? "account-request-event" : "request-event";
-        const filters = {};
-        const key = account ? "" : $("analysis-key").value;
-        if (key) filters.api_key = key;
+        const filters = apiKeyFilter(account);
         for (const [field, control] of [["model", "model"], ["source", "source"], ["failed", "status"]]) {
           const value = $(prefix + "-" + control).value;
           if (value) filters[field] = value;
@@ -3076,8 +3081,7 @@
 
       function errorEventFilters(account) {
         const prefix = account ? "account-" : "";
-        const filters = {};
-        if (!account && $("analysis-key").value) filters.api_key = $("analysis-key").value;
+        const filters = apiKeyFilter(account);
         for (const field of ["model", "source"]) {
           const value = $(prefix + "error-" + field).value;
           if (value) filters[field] = value;
@@ -3366,6 +3370,7 @@
         setPrivacyMask(role, viewPreference(role, prefix + "privacy-mask", false));
         if (!account) {
           restoreChoice(role, "analysis-key", "", true);
+          if ($("analysis-key").value === UNASSIGNED_KEY) $("analysis-key").selectedOptions[0].textContent = m("ui.unassigned");
           restoreChoice(role, "keys-include-deleted", false);
           restoreChoice(role, "plugin-log-level", "all");
         }
@@ -4197,12 +4202,10 @@
       function readAnalysis(account, reload) {
         const role = account ? "account" : "admin";
         const range = selectedRange(account);
-        const params = new URLSearchParams(range);
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-        const key = account ? "" : $("analysis-key").value;
-        params.set("timezone", timezone);
-        if (key) params.set("api_key", key);
-        const selection = JSON.stringify([sharedTimeRanges[role], key, timezone]);
+        const filters = apiKeyFilter(account);
+        const params = new URLSearchParams({ ...range, timezone, ...filters });
+        const selection = JSON.stringify([sharedTimeRanges[role], filters, timezone]);
         return analysisQueries[role].read(
           selection,
           async () => {
@@ -7348,8 +7351,9 @@
         const selected = select.value;
         renderSelectOptions(select, [
           { value: "", text: m("ui.all_api_keys") },
-          ...keys.map((key) => ({ value: key.scope, text: apiKeyIdentity(key).text + (key.deleted_at ? m("ui.deleted_2") : "") })),
-          ...(selected && !keys.some((key) => key.scope === selected)
+          ...keys.filter((key) => key.scope)
+            .map((key) => ({ value: key.scope, text: apiKeyIdentity(key).text + (key.deleted_at ? m("ui.deleted_2") : "") })),
+          ...(selected && selected !== UNASSIGNED_KEY && !keys.some((key) => key.scope === selected)
             ? [
                 {
                   value: selected,
@@ -7358,7 +7362,8 @@
                     : select.selectedOptions[0]?.textContent || selected
                 }
               ]
-            : [])
+            : []),
+          ...(selected === UNASSIGNED_KEY || keys.some((key) => !key.scope) ? [{ value: UNASSIGNED_KEY, text: m("ui.unassigned") }] : [])
         ]);
       }
 

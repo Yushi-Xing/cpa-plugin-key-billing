@@ -775,13 +775,18 @@ FAILURE_EVENT_SAMPLES = [
     event_sample(1, "codex · dev-team@example.com", "codex", "gpt-5.5", "CodexWebsocketsExecutor", "high", "auto", 4338, 237, 0, (0, 0, 0, 0), (5, 0.5, 5, 30), failed=True),
 ]
 
-EVENT_SAMPLES = SUCCESS_EVENT_SAMPLES * 2 + FAILURE_EVENT_SAMPLES
+UNASSIGNED_EVENT_SAMPLES = [
+    event_sample(None, "codex · dev-team@example.com", "codex", "gpt-5.5", "CodexWebsocketsExecutor", "medium", "auto", 3120, 1288, 12, (2048, 31744, 0, 96), (5, 0.5, 5, 30)),
+    event_sample(None, "codex · dev-team@example.com", "codex", "gpt-5.5", "CodexWebsocketsExecutor", "medium", "auto", 1810, 0, 0, (0, 0, 0, 0), (5, 0.5, 5, 30), failed=True),
+]
+
+EVENT_SAMPLES = SUCCESS_EVENT_SAMPLES * 2 + FAILURE_EVENT_SAMPLES + UNASSIGNED_EVENT_SAMPLES
 
 
 def make_request_events():
     entries = []
     for index, sample in enumerate(EVENT_SAMPLES):
-        key = KEYS[sample["key_index"]]
+        key = {"scope": "", "preview": "", "label": ""} if sample["key_index"] is None else KEYS[sample["key_index"]]
         entries.append({
             "id": str(index + 1),
             "at": iso(NOW - timedelta(hours=index * 22, minutes=(index % 4) * 11)),
@@ -802,12 +807,20 @@ def source_filter_token(scope, source):
 def source_filter_options(scope, sources):
     return [{"value": source_filter_token(scope, source), "label": source} for source in sources]
 
+# None selects every key; an empty scope selects unassigned events.
+def selected_scope(query, scope):
+    if scope:
+        return None
+    if query.get("api_key_empty", [""])[0] == "true":
+        return ""
+    return query.get("api_key", [""])[0] or None
+
 def event_snapshot(query):
     return int(query.get("snapshot_id", [str(max((int(entry["id"]) for entry in REQUEST_EVENTS), default=0))])[0])
 
 def request_event_view(query, scope=""):
     snapshot = event_snapshot(query)
-    selected_key = "" if scope else query.get("api_key", [""])[0]
+    selected_key = selected_scope(query, scope)
     selected_model = query.get("model", [""])[0]
     selected_source = query.get("source", [""])[0]
     selected_provider = query.get("provider", [""])[0]
@@ -832,7 +845,7 @@ def request_event_view(query, scope=""):
     counts = {"all": 0, "normal": 0, "failed": 0}
     matched = []
     for entry in time_matched:
-        if selected_key and entry.get("scope") != selected_key:
+        if selected_key is not None and entry.get("scope") != selected_key:
             continue
         if selected_model and (entry.get("billing_model") or entry.get("upstream_model")) != selected_model:
             continue
@@ -956,6 +969,7 @@ def request_error(event_index, message, status=0, error_type="", code="", transp
 
 
 ERRORS = [
+    request_error(30, "Rate limit reached for requests", status=429, error_type="rate_limit_error"),
     request_error(
         28,
         "Responses websocket connection limit reached (60 minutes). Create a new websocket connection to continue.",
@@ -1044,7 +1058,7 @@ def error_view(query, scope=""):
                              if int(entry["id"]) <= snapshot and (not scope or entry["scope"] == scope)], query)
     rows.sort(key=lambda entry: (entry["at"], int(entry["id"])), reverse=True)
     selected = {
-        "api_key": "" if scope else query.get("api_key", [""])[0],
+        "api_key": selected_scope(query, scope),
         "model": query.get("model", [""])[0],
         "source": query.get("source", [""])[0],
         "provider": query.get("provider", [""])[0],
@@ -1060,7 +1074,7 @@ def error_view(query, scope=""):
     counts = {}
     empty_type = query.get("error_type_empty", [""])[0] == "true"
     for entry in rows:
-        if selected["api_key"] and entry["scope"] != selected["api_key"]:
+        if selected["api_key"] is not None and entry["scope"] != selected["api_key"]:
             continue
         if selected["model"] and entry["billing_model"] != selected["model"]:
             continue
@@ -1101,8 +1115,8 @@ def error_view(query, scope=""):
 
 def analysis_view(query, scope=""):
     rows = filter_event_time([entry for entry in REQUEST_EVENTS if not scope or entry["scope"] == scope], query)
-    selected = query.get("api_key", [""])[0]
-    if selected and not scope:
+    selected = selected_scope(query, scope)
+    if selected is not None:
         rows = [entry for entry in rows if entry["scope"] == selected]
 
     def distribution(field, label_field=None, unknown="未知"):
@@ -1223,7 +1237,7 @@ def analysis_view(query, scope=""):
         },
         "trends": trends,
         "usage_distribution": {
-            "api_keys": [] if scope or selected else distribution("scope", "label"),
+            "api_keys": [] if scope or selected is not None else distribution("scope", "label", unknown=""),
             "models": distribution("billing_model", unknown="未知模型"),
             "sources": distribution("source", unknown="未知来源"),
         },
@@ -1311,8 +1325,11 @@ def payload_for(path, query):
         return model_prices(query, include_custom=query.get("include_custom", ["true"])[0] == "true")
     if path == f"{API_BASE}/events/keys":
         scopes = {event["scope"] for event in filter_event_time(REQUEST_EVENTS, query)}
-        return [{field: key[field] for field in ("scope", "preview", "label", "deleted_at") if field in key}
+        keys = [{field: key[field] for field in ("scope", "preview", "label", "deleted_at") if field in key}
                 for key in KEYS if key["scope"] in scopes]
+        if "" in scopes:
+            keys.append({"scope": "", "preview": ""})
+        return keys
     if path == f"{API_BASE}/events":
         return request_event_view(query)
     if path == f"{API_BASE}/errors":
