@@ -1,0 +1,96 @@
+name: Publish verified Linux release
+
+on:
+  workflow_dispatch:
+    inputs:
+      validation_run:
+        description: Successful Linux routing validation run ID to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-linux
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Require successful validation of the source and both architectures
+        id: validated
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VALIDATION_RUN: ${{ inputs.validation_run }}
+        run: |
+          gh api "repos/$REPOSITORY/actions/runs/$VALIDATION_RUN" > "$RUNNER_TEMP/validation.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          run=json.loads(Path(os.environ['RUNNER_TEMP']+'/validation.json').read_text())
+          assert run['status']=='completed' and run['conclusion']=='success', 'Validation has not passed'
+          assert run['path']=='.github/workflows/linux-routing.yml', 'Unexpected validation workflow'
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('sha='+run['head_sha']+'\n')
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.validated.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.validation_run }}
+          pattern: key-billing-linux-*
+          path: ${{ runner.temp }}/libraries
+      - name: Package tested libraries and create annotated version tag
+        env:
+          VALIDATED_SHA: ${{ steps.validated.outputs.sha }}
+        run: |
+          version="$(awk -F'"' '/^[[:space:]]*Version[[:space:]]*=/ {print $2; exit}' internal/plugin/types.go)"
+          test -n "$version"
+          tag="v$version"
+          if git show-ref --verify --quiet "refs/tags/$tag"; then echo "Tag already exists: $tag"; exit 1; fi
+          mkdir -p "$RUNNER_TEMP/release"
+          for arch in amd64 arm64; do
+            library="$RUNNER_TEMP/libraries/key-billing-linux-$arch/cpa-key-billing.so"
+            test -s "$library"
+            tar -czf "$RUNNER_TEMP/release/cpa-key-billing_${version}_linux_${arch}.tar.gz" -C "$(dirname "$library")" cpa-key-billing.so
+            zip -j "$RUNNER_TEMP/release/cpa-key-billing_${version}_linux_${arch}.zip" "$library"
+          done
+          cd "$RUNNER_TEMP/release"
+          sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
+          cd "$GITHUB_WORKSPACE"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git tag -a "$tag" "$VALIDATED_SHA" -m "Release $tag: permission filtering before credential priority"
+          git push origin "$tag"
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+      - name: Publish Linux packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VALIDATION_RUN: ${{ inputs.validation_run }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          text='''修复每个下游 key 的凭证权限与优先级冲突：先过滤允许使用的凭证，再按优先级和权重选择。
+
+只放行低优先级 Zed 时，可正常使用与高优先级 Codex 同名的模型；两者都放行时，继续遵循 CPA 原有优先级。
+
+这是 Yushi-Xing 维护的 Linux 修复版本。需要 CPA 支持 scheduler_across_priorities（已联合验证 v6-10-08）。旧宿主不支持此能力时，应先升级宿主。
+
+升级前停止 CPA，保留配置与计费数据库，替换插件并更新已配置的 store.version / store.release-tag，再启动 CPA。不要在运行中覆盖 .so，也不要同时加载新旧计费插件。
+
+验证：Go race 全量测试、vet、原有 CPA 计费端到端测试、两种 Linux 架构及 GLIBC 2.17 检查。
+'''
+          text+='\nActions: https://github.com/'+os.environ['REPOSITORY']+'/actions/runs/'+os.environ['VALIDATION_RUN']+'\n'
+          Path(os.environ['RUNNER_TEMP']+'/release-notes.md').write_text(text)
+          PY
+          gh release create "$RELEASE_TAG" --repo "$REPOSITORY" --verify-tag --title "$RELEASE_TAG Linux routing fix" --notes-file "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/release/"*
