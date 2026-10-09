@@ -38,7 +38,7 @@ jobs:
             "$TARGET_IMAGE" bash -euc 'CGO_ENABLED=1 go build -trimpath -buildvcs=false -ldflags="-s -w" -tags cshared -buildmode=c-shared -o /out/cpa-key-billing.so ./cmd/cpa-key-billing'
           rm -f "$RUNNER_TEMP/package/cpa-key-billing.h"
           ldd -r "$RUNNER_TEMP/package/cpa-key-billing.so" > "$RUNNER_TEMP/dependencies.txt"
-          ! grep -E 'not found|undefined symbol' "$RUNNER_TEMP/dependencies.txt"
+          if grep -E 'not found|undefined symbol' "$RUNNER_TEMP/dependencies.txt"; then exit 1; fi
           python3 - <<'PY'
           import os,re,subprocess
           library=os.environ['RUNNER_TEMP']+'/package/cpa-key-billing.so'
