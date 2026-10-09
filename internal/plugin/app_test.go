@@ -27,7 +27,7 @@ func TestRegisterDeclaresExpectedCapabilities(t *testing.T) {
 		t.Fatalf("SchemaVersion = %d, want %d", registration.SchemaVersion, SchemaVersion)
 	}
 	caps := registration.Capabilities
-	if !caps.RequestInterceptor || !caps.RequestLifecyclePlugin || !caps.UsagePlugin || !caps.ManagementAPI || !caps.Scheduler {
+	if !caps.RequestInterceptor || !caps.RequestLifecyclePlugin || !caps.UsagePlugin || !caps.ManagementAPI || !caps.Scheduler || !caps.SchedulerAcrossPriorities {
 		t.Fatalf("capabilities = %+v, want every hook billing depends on", caps)
 	}
 	if registration.Metadata.Name != PluginName || registration.Metadata.Version != Version {

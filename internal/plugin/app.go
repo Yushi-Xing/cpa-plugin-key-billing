@@ -166,11 +166,12 @@ func registration() Registration {
 			},
 		},
 		Capabilities: Capabilities{
-			RequestInterceptor:     true,
-			RequestLifecyclePlugin: true,
-			UsagePlugin:            true,
-			ManagementAPI:          true,
-			Scheduler:              true,
+			RequestInterceptor:        true,
+			RequestLifecyclePlugin:    true,
+			UsagePlugin:               true,
+			ManagementAPI:             true,
+			Scheduler:                 true,
+			SchedulerAcrossPriorities: true,
 		},
 	}
 }

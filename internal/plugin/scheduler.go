@@ -39,6 +39,36 @@ func candidateWeight(candidate SchedulerAuthCandidate) int64 {
 	return weight
 }
 
+func candidatePriority(candidate SchedulerAuthCandidate) int {
+	priority, err := strconv.Atoi(strings.TrimSpace(candidate.Attributes["priority"]))
+	if err != nil {
+		return 0
+	}
+	return priority
+}
+
+// The host supplies all available priorities. Apply priority only after the
+// key's credential policy, and keep the existing subset scheduler's exclusion
+// of non-positive weights. Never widen this set with credentials from inventory.
+func highestPriorityRoutedCandidates(candidates []SchedulerAuthCandidate) []SchedulerAuthCandidate {
+	selected := make([]SchedulerAuthCandidate, 0, len(candidates))
+	best, found := 0, false
+	for _, candidate := range candidates {
+		if candidateWeight(candidate) == 0 {
+			continue
+		}
+		priority := candidatePriority(candidate)
+		if !found || priority > best {
+			best, found = priority, true
+			selected = selected[:0]
+		}
+		if priority == best {
+			selected = append(selected, candidate)
+		}
+	}
+	return selected
+}
+
 func routingPoolKey(model string, decision billing.RoutingDecision) string {
 	// Keep round-robin progress separate per model; this does not change which
 	// credentials the key is allowed to use.
@@ -176,6 +206,7 @@ func (a *App) pickCredential(raw []byte) ([]byte, error) {
 	if len(allowed) == len(req.Candidates) {
 		return OKEnvelope(SchedulerPickResponse{Handled: false})
 	}
+	allowed = highestPriorityRoutedCandidates(allowed)
 	id := a.scheduler.pick(scope, routingPoolKey(decision.Model, decision), allowed)
 	if id == "" {
 		return ErrorEnvelope("no_routed_credential", noRoutedCredentialMessage, http.StatusServiceUnavailable), nil

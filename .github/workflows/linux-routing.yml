@@ -1,0 +1,100 @@
+name: Linux routing validation
+
+on:
+  push:
+    branches: [fix/authorized-priority]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: amd64, image: quay.io/pypa/manylinux2014_x86_64}
+          - {runner: ubuntu-24.04-arm, arch: arm64, image: quay.io/pypa/manylinux2014_aarch64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - name: Compile Linux library against GLIBC 2.17
+        env:
+          TARGET_IMAGE: ${{ matrix.image }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          docker run --rm -v "$PWD:/src" -w /src \
+            -v "$(go env GOROOT):/usr/local/go:ro" \
+            -v "$RUNNER_TEMP/package:/out" \
+            -e PATH="/usr/local/go/bin:/opt/rh/devtoolset-10/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+            "$TARGET_IMAGE" bash -euc 'CGO_ENABLED=1 go build -trimpath -buildvcs=false -ldflags="-s -w" -tags cshared -buildmode=c-shared -o /out/cpa-key-billing.so ./cmd/cpa-key-billing'
+          rm -f "$RUNNER_TEMP/package/cpa-key-billing.h"
+          ldd -r "$RUNNER_TEMP/package/cpa-key-billing.so" > "$RUNNER_TEMP/dependencies.txt"
+          ! grep -E 'not found|undefined symbol' "$RUNNER_TEMP/dependencies.txt"
+          python3 - <<'PY'
+          import os,re,subprocess
+          library=os.environ['RUNNER_TEMP']+'/package/cpa-key-billing.so'
+          output=subprocess.check_output(['readelf','--version-info',library],text=True)
+          versions=[tuple(map(int,v.split('.'))) for v in re.findall(r'Name: GLIBC_([0-9.]+)',output)]
+          assert versions and max(versions)<=(2,17),versions
+          PY
+      - name: Required CPA billing end-to-end regression
+        if: matrix.arch == 'amd64'
+        env:
+          CPA_E2E_CACHE_DIR: ${{ runner.temp }}/billing-e2e-cache
+        run: scripts/e2e_cpa_billing.sh v7.2.143
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: key-billing-linux-${{ matrix.arch }}
+          path: ${{ runner.temp }}/package/cpa-key-billing.so
+          if-no-files-found: error
+  footer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify version footer in desktop and narrow CPAMP shell
+        run: |
+          cd "$RUNNER_TEMP"
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+          python3 "$GITHUB_WORKSPACE/scripts/frontend_dummy_backend.py" --port 18765 --host cpamp > preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'JS'
+          import {chromium} from 'playwright';
+          const browser=await chromium.launch();
+          for(const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
+            const page=await browser.newPage({viewport});
+            await page.goto('http://127.0.0.1:18765/');
+            const frame=page.frameLocator('iframe');
+            const footer=frame.getByText('v1.3.20',{exact:false}).first();
+            await footer.waitFor({state:'attached'});
+            const text=await footer.textContent();
+            if(!text.includes('v1.3.20'))throw new Error('Stale version footer');
+            await footer.scrollIntoViewIfNeeded();
+            if(!await footer.isVisible())throw new Error('Hidden version footer');
+            await page.screenshot({path:`footer-${viewport.width}.png`,fullPage:true});
+            await page.close();
+          }
+          await browser.close();
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: footer-previews
+          path: |
+            ${{ runner.temp }}/footer-*.png
+            ${{ runner.temp }}/preview.log

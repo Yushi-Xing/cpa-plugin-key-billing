@@ -18,7 +18,7 @@ const (
 const (
 	PluginID   = "cpa-key-billing"
 	PluginName = "cpa-key-billing"
-	Version    = "1.3.19"
+	Version    = "1.3.20"
 
 	MenuLabel       = "API Key Billing"
 	MenuDescription = "Manage downstream API key routing, billing, concurrency limits, subscription quotas, and usage"
@@ -95,11 +95,12 @@ type ConfigField struct {
 }
 
 type Capabilities struct {
-	RequestInterceptor     bool `json:"request_interceptor"`
-	RequestLifecyclePlugin bool `json:"request_lifecycle_plugin"`
-	UsagePlugin            bool `json:"usage_plugin"`
-	ManagementAPI          bool `json:"management_api"`
-	Scheduler              bool `json:"scheduler"`
+	RequestInterceptor        bool `json:"request_interceptor"`
+	RequestLifecyclePlugin    bool `json:"request_lifecycle_plugin"`
+	UsagePlugin               bool `json:"usage_plugin"`
+	ManagementAPI             bool `json:"management_api"`
+	Scheduler                 bool `json:"scheduler"`
+	SchedulerAcrossPriorities bool `json:"scheduler_across_priorities"`
 }
 
 type SchedulerPickRequest struct {
