@@ -18,7 +18,7 @@ const (
 const (
 	PluginID   = "cpa-key-billing"
 	PluginName = "cpa-key-billing"
-	Version    = "1.3.20"
+	Version    = "1.3.21"
 
 	MenuLabel       = "API Key Billing"
 	MenuDescription = "Manage downstream API key routing, billing, concurrency limits, subscription quotas, and usage"
@@ -104,8 +104,9 @@ type Capabilities struct {
 }
 
 type SchedulerPickRequest struct {
-	Model   string `json:"Model"`
-	Options struct {
+	SupportsCandidateFiltering bool   `json:"SupportsCandidateFiltering"`
+	Model                      string `json:"Model"`
+	Options                    struct {
 		Metadata map[string]any `json:"Metadata"`
 	} `json:"Options"`
 	Candidates []SchedulerAuthCandidate `json:"Candidates"`
@@ -119,8 +120,9 @@ type SchedulerAuthCandidate struct {
 }
 
 type SchedulerPickResponse struct {
-	AuthID  string `json:"AuthID,omitempty"`
-	Handled bool   `json:"Handled"`
+	AllowedAuthIDs []string `json:"AllowedAuthIDs,omitempty"`
+	AuthID         string   `json:"AuthID,omitempty"`
+	Handled        bool     `json:"Handled"`
 }
 
 type RequestCompletion struct {

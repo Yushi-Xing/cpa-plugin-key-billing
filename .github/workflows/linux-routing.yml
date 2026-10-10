@@ -4,6 +4,12 @@ on:
   push:
     branches: [fix/authorized-priority]
   workflow_dispatch:
+    inputs:
+      cpa_revision:
+        description: Exact CPA fork commit for candidate-filter joint validation (optional)
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -51,11 +57,33 @@ jobs:
         env:
           CPA_E2E_CACHE_DIR: ${{ runner.temp }}/billing-e2e-cache
         run: scripts/e2e_cpa_billing.sh v7.2.143
+      - name: Validate CPA revision
+        if: matrix.arch == 'amd64' && inputs.cpa_revision != ''
+        env:
+          CPA_REVISION: ${{ inputs.cpa_revision }}
+        run: |
+          [[ "$CPA_REVISION" =~ ^[0-9a-f]{40}$ ]]
+      - name: Check out CPA fork for joint validation
+        if: matrix.arch == 'amd64' && inputs.cpa_revision != ''
+        uses: actions/checkout@v4
+        with:
+          repository: Yushi-Xing/CLIProxyAPI
+          ref: ${{ inputs.cpa_revision }}
+          path: cpa-host
+          persist-credentials: false
+      - name: Verify real CPA and billing candidate filtering
+        if: matrix.arch == 'amd64' && inputs.cpa_revision != ''
+        run: |
+          CGO_ENABLED=1 go -C cpa-host build -trimpath -buildvcs=false -o "$RUNNER_TEMP/cli-proxy-api" ./cmd/server
+          python3 -B cpa-host/test/plugin_candidate_filter_e2e.py \
+            --binary "$RUNNER_TEMP/cli-proxy-api" \
+            --billing "$RUNNER_TEMP/package/cpa-key-billing.so" \
+            --report "$RUNNER_TEMP/package/candidate-filter-acceptance.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: key-billing-linux-${{ matrix.arch }}
-          path: ${{ runner.temp }}/package/cpa-key-billing.so
+          path: ${{ runner.temp }}/package/
           if-no-files-found: error
   footer:
     runs-on: ubuntu-24.04
@@ -65,6 +93,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Read plugin version
+        run: |
+          version="$(awk -F'"' '/^[[:space:]]*Version[[:space:]]*=/ {print $2; exit}' internal/plugin/types.go)"
+          test -n "$version"
+          printf 'PLUGIN_VERSION=v%s\n' "$version" >> "$GITHUB_ENV"
       - name: Verify version footer in desktop and narrow CPAMP shell
         run: |
           cd "$RUNNER_TEMP"
@@ -76,14 +109,15 @@ jobs:
           node --input-type=module <<'JS'
           import {chromium} from 'playwright';
           const browser=await chromium.launch();
+          const version=process.env.PLUGIN_VERSION;
           for(const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
             const page=await browser.newPage({viewport});
             await page.goto('http://127.0.0.1:18765/');
             const frame=page.frameLocator('iframe');
-            const footer=frame.getByText('v1.3.20',{exact:false}).first();
+            const footer=frame.getByText(version,{exact:false}).first();
             await footer.waitFor({state:'attached'});
             const text=await footer.textContent();
-            if(!text.includes('v1.3.20'))throw new Error('Stale version footer');
+            if(!text.includes(version))throw new Error('Stale version footer');
             await footer.scrollIntoViewIfNeeded();
             if(!await footer.isVisible())throw new Error('Hidden version footer');
             await page.screenshot({path:`footer-${viewport.width}.png`,fullPage:true});

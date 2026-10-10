@@ -206,6 +206,18 @@ func (a *App) pickCredential(raw []byte) ([]byte, error) {
 	if len(allowed) == len(req.Candidates) {
 		return OKEnvelope(SchedulerPickResponse{Handled: false})
 	}
+	if req.SupportsCandidateFiltering {
+		// Permission filtering must precede host priority and session affinity.
+		// Keep lower tiers and all weights so the host can reuse an available
+		// binding or apply its configured fallback strategy within this set.
+		ids := make([]string, 0, len(allowed))
+		for _, candidate := range allowed {
+			ids = append(ids, candidate.ID)
+		}
+		return OKEnvelope(SchedulerPickResponse{AllowedAuthIDs: ids, Handled: true})
+	}
+	// Older hosts cannot apply a candidate filter; retain their established
+	// permission-aware scheduling instead of delegating an unrestricted pool.
 	allowed = highestPriorityRoutedCandidates(allowed)
 	id := a.scheduler.pick(scope, routingPoolKey(decision.Model, decision), allowed)
 	if id == "" {
