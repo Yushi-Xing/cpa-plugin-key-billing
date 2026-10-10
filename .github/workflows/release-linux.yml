@@ -77,20 +77,12 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           VALIDATION_RUN: ${{ inputs.validation_run }}
         run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          text='''修复每个下游 key 的凭证权限与优先级冲突：先过滤允许使用的凭证，再按优先级和权重选择。
-
-          只放行低优先级 Zed 时，可正常使用与高优先级 Codex 同名的模型；两者都放行时，继续遵循 CPA 原有优先级。
-
-          这是 Yushi-Xing 维护的 Linux 修复版本。需要 CPA 支持 scheduler_across_priorities（已联合验证 v6-10-08）。旧宿主不支持此能力时，应先升级宿主。
-
-          升级前停止 CPA，保留配置与计费数据库，替换插件并更新已配置的 store.version / store.release-tag，再启动 CPA。不要在运行中覆盖 .so，也不要同时加载新旧计费插件。
-
-          验证：Go race 全量测试、vet、原有 CPA 计费端到端测试、两种 Linux 架构及 GLIBC 2.17 检查。
-          '''
-          text+='\nActions: https://github.com/'+os.environ['REPOSITORY']+'/actions/runs/'+os.environ['VALIDATION_RUN']+'\n'
-          Path(os.environ['RUNNER_TEMP']+'/release-notes.md').write_text(text)
-          PY
+          awk -v heading="## $RELEASE_TAG" '
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' Changelog.md > "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+          printf '\n验证构建：https://github.com/%s/actions/runs/%s\n' "$REPOSITORY" "$VALIDATION_RUN" >> "$RUNNER_TEMP/release-notes.md"
           gh release create "$RELEASE_TAG" --repo "$REPOSITORY" --verify-tag --title "$RELEASE_TAG Linux routing fix" --notes-file "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/release/"*
